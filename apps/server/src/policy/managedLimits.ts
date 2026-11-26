@@ -72,9 +72,8 @@ export function allowsAuthPolicy(policy: PolicyDocument, authPolicy: ServerAuthP
 export const allowsRemoteClients = (policy: PolicyDocument) =>
   allowsAuthPolicy(policy, "remote-reachable");
 
-/** T3 Connect is a way for remote clients in, so a policy without `remote` turns it off too. */
-export const allowsConnect = (policy: PolicyDocument) =>
-  policy.document?.limits?.connect !== false && allowsRemoteClients(policy);
+/** Existing links and managed policy cannot enable the hosted relay in this build. */
+export const allowsConnect = (_policy: PolicyDocument): boolean => false;
 
 const refuse = (policy: PolicyDocument, action: string, detail?: string) =>
   new ManagedPolicyRefusedError({
@@ -83,7 +82,8 @@ const refuse = (policy: PolicyDocument, action: string, detail?: string) =>
     ...(detail === undefined ? {} : { detail }),
   });
 
-export const refuseConnect = (policy: PolicyDocument) => refuse(policy, "T3 Connect");
+export const refuseConnect = (_policy: PolicyDocument) =>
+  new ManagedPolicyRefusedError({ organization: "This build", action: "T3 Connect" });
 
 // Node throws ENOTDIR, outside the spawner's error mapping, when PATH ends in a file.
 const isMissingCli = (cause: unknown) =>

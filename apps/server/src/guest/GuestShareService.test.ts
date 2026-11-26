@@ -24,6 +24,7 @@ import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAda
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
+import * as Path from "effect/Path";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Queue from "effect/Queue";
@@ -211,15 +212,12 @@ it.effect("spends an invite once and ends the guest stream when the owner stops 
   }).pipe(Effect.provide(layerTest)),
 );
 
-it.effect("counts a guest joining and sending, without their name or text", () =>
+it.effect("does not record analytics when a guest joins or sends a message", () =>
   Effect.gen(function* () {
     const { guestShares, credential } = yield* shareThread;
     const { token: session, shareId } = yield* guestShares.redeem({ credential, name: "Sam" });
     yield* guestShares.submit(session, { shareId, text: "Hello" }, []);
-    assert.deepEqual(yield* Ref.get(yield* RecordedAnalytics), [
-      { event: "feature.used", feature: "guest_share.join" },
-      { event: "feature.used", feature: "guest_message.submit", variant: "text_only" },
-    ]);
+    assert.deepEqual(yield* Ref.get(yield* RecordedAnalytics), []);
   }).pipe(Effect.provide(layerTest)),
 );
 
@@ -1210,9 +1208,11 @@ it.effect("serves an image on the host only when an agent reply the guest sees s
     const { orchestrator, guestShares } = yield* shareThread;
     const runId = yield* ownerRun;
     const fileSystem = yield* FileSystem.FileSystem;
-    const directory = yield* fileSystem.makeTempDirectoryScoped();
+    const directory = (yield* fileSystem.makeTempDirectoryScoped()).replaceAll("\\", "/");
     const shot = `${directory}/my shot.png`;
     const fileUrl = `${directory}/file-url.png`;
+    const path = yield* Path.Path;
+    const fileHref = (yield* path.toFileUrl(fileUrl)).href;
     const page = `${directory}/page.png`;
     const fromUser = `${directory}/from-user.png`;
     const unnamed = `${directory}/unnamed.png`;
@@ -1269,7 +1269,7 @@ it.effect("serves an image on the host only when an agent reply the guest sees s
       events: [
         item("item:agent-images", 1, {
           type: "assistant_message",
-          text: `Done: ![Shot](<${shot}>) ![Other](file://${encodeURI(fileUrl)}) ![Page](${page})`,
+          text: `Done: ![Shot](<${shot}>) ![Other](${fileHref}) ![Page](${page})`,
         }),
         // A guest's sent message is a user message; it must not open files on the host.
         item("item:guest-image", 2, { type: "user_message", text: `![Mine](${fromUser})` }),

@@ -238,15 +238,6 @@ export const make = Effect.fn("RelayClientLedger.make")(function* (input: {
 });
 
 // Reaping finishes before any connector starts, so exactly one serves the tunnel.
-export const layer = (input: { readonly stateDir: string }) =>
-  Layer.effect(
-    RelayClientLedger,
-    Effect.gen(function* () {
-      const ledger = yield* make(input);
-      yield* ledger.reapOrphans;
-      return RelayClientLedger.of({ track: ledger.track });
-    }),
-  );
 
 export const layerTest = Layer.succeed(
   RelayClientLedger,

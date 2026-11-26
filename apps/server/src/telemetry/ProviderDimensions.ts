@@ -63,7 +63,7 @@ const listsVendorModels = ({ driver, auth }: ServerProvider) =>
  * or `antigravity-default`, maps to its catalog slug. Any other id can name a user, a
  * deployment, or a local file, so it reports only the driver as `custom:<driver>`.
  */
-export function modelLabel(
+function modelLabel(
   providers: ReadonlyArray<ServerProvider>,
   driver: string,
   model: string,
@@ -113,7 +113,7 @@ const oneOf = (value: string | undefined, allowed: ReadonlyArray<string>) =>
  * Whether two resolved providers differ. Unresolved selections compare as
  * unknown rather than as a cross-provider handoff.
  */
-export const crossProvider = (caller: string, target: string) =>
+const crossProvider = (caller: string, target: string) =>
   caller === "unknown" || target === "unknown" ? undefined : caller !== target;
 
 const defined = (entries: Readonly<Record<string, unknown>>) =>

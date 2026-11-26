@@ -37,38 +37,18 @@ vi.mock("../cloud/publicConfig.ts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../cloud/publicConfig.ts")>()),
   hasCloudPublicConfig: true,
 }));
-vi.mock("./connect.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./connect.ts")>();
-  return {
-    ...actual,
-    linkEnvironmentForConnect: () =>
-      Effect.sync(() => {
-        events.push("link");
-        link.desired = true;
-        link.mode = "managed";
-        return { identity: "me@example.com" } as const;
-      }),
-    disconnectCloud: () =>
-      Effect.sync(() => {
-        events.push("unlink");
-        link.desired = false;
-        return { status: "succeeded" } as const;
-      }),
-  };
-});
-
 it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer, NetService.layer))(
   "t3 up with T3 Connect",
   (it) => {
     it.effect.each([
-      { label: "no link", prior: null, events: ["link", "restart", "unlink", "restart"] },
-      // The publish-only link comes back, with its activity publishing.
+      { label: "no link", prior: null, events: [] },
+      // Legacy activity-only links also stay inert.
       {
         label: "a publish-only link",
         prior: "publish_only" as const,
-        events: ["link", "restart", "restart"],
+        events: [],
       },
-    ])("a failed restart after --connect undoes it, then restarts: $label before", (input) =>
+    ])("--connect refuses before changing $label or restarting the service", (input) =>
       Effect.gen(function* () {
         events.length = 0;
         link.desired = input.prior !== null;
@@ -116,7 +96,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer, NetService.layer))
         );
 
         expect(exit._tag).toBe("Failure");
-        // Any unlink comes before the restart on the old settings.
+        // A saved link never re-enables Connect or changes the service.
         expect(events).toEqual(input.events);
         expect(link).toEqual(
           input.prior === null

@@ -60,7 +60,7 @@ it.effect("refuses private callbacks unless allowlisted, and the client never re
     const pinned = yield* Effect.flip(client.post(`http://localhost:${port}/target`));
     expect(pinned.reason._tag).toBe("TransportError");
     expect(String((pinned.reason as { readonly cause?: unknown }).cause)).toContain(
-      "localhost is not a public address",
+      "Webhook host is not allowed",
     );
   }).pipe(Effect.scoped, Effect.provide(NodeHttpServer.layerTest)),
 );

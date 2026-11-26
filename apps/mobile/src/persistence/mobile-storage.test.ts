@@ -55,14 +55,11 @@ describe("mobile device identity", () => {
     }),
   );
 
-  it.effect("keeps the analytics id separate from the relay device id", () =>
+  it.effect("does not store an analytics identifier", () =>
     Effect.gen(function* () {
-      const storage = yield* makeStorage;
-      const relayDeviceId = yield* storage.loadOrCreateAgentAwarenessDeviceId;
-      const analyticsDeviceId = yield* storage.loadOrCreateAnalyticsDeviceId;
-
-      expect(analyticsDeviceId).not.toBe(relayDeviceId);
-      expect(yield* storage.loadOrCreateAnalyticsDeviceId).toBe(analyticsDeviceId);
+      yield* makeStorage;
+      expect(values.has("t3code.analytics.device-id")).toBe(false);
+      expect(setItemAsync).not.toHaveBeenCalled();
     }),
   );
 

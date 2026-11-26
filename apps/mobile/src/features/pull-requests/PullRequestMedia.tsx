@@ -33,7 +33,7 @@ export function usePullRequestMediaUrl(url: string) {
   const asset = useAssetUrlState(context?.environmentId ?? null, resource);
   const refresh = useRefreshAssetUrl(context?.environmentId ?? null, resource);
   return {
-    uri: asset._tag === "Success" ? asset.url : resource ? null : url,
+    uri: asset._tag === "Success" ? asset.url : null,
     cacheKey: context && resource ? assetImageCacheKey(context.environmentId, resource) : undefined,
     unavailable: resource !== null && asset._tag === "Failure",
     source,

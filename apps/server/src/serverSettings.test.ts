@@ -445,8 +445,8 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
         },
       });
 
-      assert.equal(next.observability.otlpTracesUrl, "http://localhost:4318/v1/traces");
-      assert.equal(next.observability.otlpMetricsUrl, "http://localhost:4318/v1/metrics");
+      assert.equal(next.observability.otlpTracesUrl, "");
+      assert.equal(next.observability.otlpMetricsUrl, "");
       assert.deepEqual(
         next.textGenerationModelSelection,
         createModelSelection(
@@ -478,7 +478,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
 
       const saved = yield* decodeServerSettingsJson(yield* fs.readFileString(config.settingsPath));
       assert.equal(saved.responseStreamingMode, "turn");
-      assert.equal(saved.observability.otlpTracesUrl, "http://localhost:4318/v1/traces");
+      assert.equal(saved.observability.otlpTracesUrl, "");
 
       yield* writeFileStringAtomically({
         filePath: config.settingsPath,

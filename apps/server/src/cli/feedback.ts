@@ -134,7 +134,7 @@ export const feedbackCommand = Command.make("feedback", {
   ),
 }).pipe(
   Command.withDescription(
-    "Send feedback about T3 Code to the T3 team. Needs Agent feedback set to Automatic in Settings > Labs; to approve a report first, ask your agent in a thread.",
+    "Feedback submission is disabled in this build. The list subcommand reads local reports.",
   ),
   Command.withHandler(({ baseDir, kind, subject, expected, actual, workaround }) =>
     withThreadTools(

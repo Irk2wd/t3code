@@ -278,7 +278,7 @@ export const updateCommand = Command.make("update", {
   version: versionArgument,
 }).pipe(
   Command.withDescription(
-    "Download a newer t3 and switch this machine to it, including the background service when one is installed.",
+    "Application updates are disabled in this build. Build the desired fork revision to upgrade.",
   ),
   Command.withHandler((flags) =>
     Effect.gen(function* () {

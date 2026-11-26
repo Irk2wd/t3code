@@ -519,7 +519,6 @@ public final class T3ComposerEditorView: ExpoView, UITextViewDelegate, UITextDro
   private var resetGeneration = 0
   private var lastContentSize = CGSize.zero
   private var iconImages: [String: UIImage] = [:]
-  private var pendingIconUris = Set<String>()
   private var tokensNeedRebuild = false
   private var chipsNeedMeasuredWidth = false
   private var hasDeferredForcedRebuild = false
@@ -1165,7 +1164,7 @@ public final class T3ComposerEditorView: ExpoView, UITextViewDelegate, UITextDro
     if let image = iconImages[uri] {
       return image
     }
-    guard !pendingIconUris.contains(uri), let url = URL(string: uri) else {
+    guard let url = URL(string: uri) else {
       return nil
     }
 
@@ -1174,20 +1173,6 @@ public final class T3ComposerEditorView: ExpoView, UITextViewDelegate, UITextDro
       return image
     }
 
-    pendingIconUris.insert(uri)
-    URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
-      guard let self, let data, let image = UIImage(data: data) else {
-        DispatchQueue.main.async {
-          self?.pendingIconUris.remove(uri)
-        }
-        return
-      }
-      DispatchQueue.main.async {
-        self.pendingIconUris.remove(uri)
-        self.iconImages[uri] = image
-        self.applyControlledDocument(force: true)
-      }
-    }.resume()
     return nil
   }
 

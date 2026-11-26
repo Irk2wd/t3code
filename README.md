@@ -8,14 +8,7 @@
 
 <p align="center">The open-source control plane for coding agents.</p>
 
-<p align="center">
-  <a href="https://t3.codes/download"><strong>Download</strong></a> ·
-  <a href="https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824">iOS</a> ·
-  <a href="https://play.google.com/store/apps/details?id=com.t3tools.t3code">Android</a> ·
-  <a href="https://app.t3.codes">Web</a> ·
-  <a href="./docs/README.md">Docs</a> ·
-  <a href="https://discord.gg/jn4EGJjrvv">Discord</a>
-</p>
+This is Irk2wd's privacy fork of T3 Code. It runs the existing UI and signed-in coding agents with a restricted network policy. [Network destinations and data sent](./docs/user/telemetry.md)
 
 <p align="center">
   <a href="https://t3.codes">
@@ -32,50 +25,21 @@ It works with Claude Code, Codex, Cursor, OpenCode, Grok Build, Antigravity, Kir
 - **Your subscriptions.** T3 Code does not resell tokens. It drives the agents you are already signed in to.
 - **Every agent in one place.** Change models in the middle of a thread. Let Claude hand a task to Codex.
 - **Desktop, web, and phone.** One server, and every client shows the same threads. There are apps for iOS and Android.
-- **Remote ready.** Run agents on any machine. Connect over your local network, Tailscale, or [T3 Connect](./docs/user/remote-access.md).
 - **Git built in.** Each thread can work in its own worktree. Review the diff, then commit, push, and open a pull request with one button.
 - **Fast.** Performance is a feature here. We measure it, and we treat a dropped frame as a bug.
 - **Open.** Source code is MIT licensed. If you don't like something, fork it under your own branding (see [Trademarks and forks](#trademarks-and-forks)).
 
-## Install
+## Run this fork from source
 
-### Desktop app
+Use the Node and pnpm versions pinned in the root package manifest. From this checkout, install the workspace dependencies and build the local server and UI.
 
-[Download T3 Code](https://t3.codes/download) for macOS, Windows, or Linux. You can also use a package manager:
-
-| Platform       | Command                                                              |
-| -------------- | -------------------------------------------------------------------- |
-| macOS          | `brew install --cask t3-code`                                        |
-| Windows        | `winget install T3Tools.T3Code` or `scoop install extras/t3code`     |
-| Arch Linux     | `yay -S t3code-bin`                                                  |
-| Nix            | `nix profile add github:NixOS/nixpkgs/nixos-unstable#t3code`         |
-| Debian, Ubuntu | `.deb` from [Releases](https://github.com/pingdotgg/t3code/releases) |
-
-### Command line
-
-This installs the `t3` command. Run `t3` to start the server and open the web app.
-
-```bash
-curl -fsSL https://t3.codes/install.sh | sh
+```sh
+pnpm install --frozen-lockfile
+pnpm exec vp run build:desktop
+node apps/server/dist/bin.mjs
 ```
 
-On Windows, in PowerShell:
-
-```powershell
-irm https://t3.codes/install.ps1 | iex
-```
-
-To try it once without an install, run `npx t3@latest`.
-
-### Phone
-
-Get the app from the [App Store](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824) or [Google Play](https://play.google.com/store/apps/details?id=com.t3tools.t3code). Then follow [remote access](./docs/user/remote-access.md) to connect it to your computer.
-
-### Sign in to an agent
-
-T3 Code needs one agent that is installed and signed in. For example, install [Claude Code](https://claude.com/product/claude-code) and run `claude auth login`, or install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`.
-
-[Provider setup](./docs/user/install.md#providers) has the steps for each agent. [Install T3 Code](./docs/user/install.md) covers nightly builds, AppImage, WSL, and NixOS.
+Use an already installed and signed-in provider CLI. The desktop development launcher is `pnpm exec vp run dev:desktop`. Application updates are disabled. To upgrade, review the source revision and build it locally.
 
 ## "Wait, what are you selling me?"
 

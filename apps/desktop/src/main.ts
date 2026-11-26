@@ -5,7 +5,9 @@ for (const stream of [process.stdout, process.stderr]) {
   stream.on("error", handleStdioError);
 }
 
-import * as NodeHttpClient from "@effect/platform-node/NodeHttpClient";
+import { installApplicationNetworkPolicy } from "@t3tools/shared/nodeNetworkAccess";
+import { restrictRendererNetwork } from "./electron/RendererNetwork.ts";
+import { FetchHttpClient } from "effect/http";
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -18,6 +20,13 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 
 import * as Electron from "electron";
+
+installApplicationNetworkPolicy();
+Electron.app.commandLine.appendSwitch("disable-background-networking");
+Electron.app.commandLine.appendSwitch("dns-prefetch-disable");
+Electron.app.commandLine.appendSwitch("disable-quic");
+Electron.app.commandLine.appendSwitch("force-webrtc-ip-handling-policy", "disable_non_proxied_udp");
+Electron.app.on("session-created", restrictRendererNetwork);
 
 import * as NetService from "@t3tools/shared/Net";
 import * as HostProcess from "@t3tools/shared/HostProcess";
@@ -243,7 +252,7 @@ const layerDesktopClerk = DesktopClerk.layer.pipe(
 
 const layerDesktopApplicationRuntime = layerDesktopApplication.pipe(
   Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
-  Layer.provideMerge(NodeHttpClient.layerUndici),
+  Layer.provideMerge(FetchHttpClient.layer),
   Layer.provideMerge(NetService.layer),
   Layer.provideMerge(layerElectron),
 );

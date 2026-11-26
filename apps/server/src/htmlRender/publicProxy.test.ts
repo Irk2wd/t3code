@@ -126,14 +126,19 @@ describe("publicProxy", () => {
 
   it.effect("refuses fake-IP names and records hosts whose every address is fake", () =>
     Effect.gen(function* () {
+      vi.stubEnv("T3CODE_ALLOWED_ORIGINS", "https://cdn.fake-ip.test,https://mixed.fake-ip.test");
       const { port, fakeIpHosts } = yield* publicProxy;
+      const refused = yield* connectThrough(port, domainTarget("cdn.fake-ip.test", 8443));
+      refused.socket.destroy();
+      expect(refused.code).toBe(2);
+      expect(fakeIpHosts.size).toBe(0);
       for (const host of ["cdn.fake-ip.test", "mixed.fake-ip.test"]) {
         const { code, socket } = yield* connectThrough(port, domainTarget(host, 443));
         socket.destroy();
         expect(code).toBe(2);
       }
       expect([...fakeIpHosts]).toEqual([["cdn.fake-ip.test", "198.18.2.40"]]);
-    }),
+    }).pipe(Effect.ensuring(Effect.sync(() => vi.unstubAllEnvs()))),
   );
 
   it.effect("refuses every address this machine holds, even a public one", () =>

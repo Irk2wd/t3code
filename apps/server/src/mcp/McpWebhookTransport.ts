@@ -67,53 +67,27 @@ export const isGloballyRoutable = (address: string): boolean => {
 
 const hostOf = (url: URL) => url.hostname.replace(/^\[(.*)\]$/, "$1").toLowerCase();
 
-const resolveAll = (host: string) =>
-  Effect.callback<ReadonlyArray<NodeDns.LookupAddress>, Error>((resume) => {
-    NodeDns.lookup(host, { all: true }, (error, addresses) =>
-      resume(error === null ? Effect.succeed(addresses) : Effect.fail(error)),
-    );
-  });
-
-/**
- * The webhook address check and the client deliveries go through. The client resolves again
- * as it connects, to the address it checks, so DNS rebinding cannot reach a private address;
- * TLS still sees the host name. Undici's dispatcher never follows redirects.
- */
+/** Check the host before DNS resolution and again when the transport opens a connection. */
 export const make = (hosts: ReadonlyArray<string>) => {
   const allowed = new Set(hosts.map((host) => host.trim().toLowerCase()));
   const check = Effect.fn("McpWebhookTransport.check")(function* (url: URL) {
     const host = hostOf(url);
-    if (allowed.has(host)) return;
-    const addresses =
-      NodeNet.isIP(host) !== 0
-        ? [host]
-        : (yield* resolveAll(host).pipe(
-            // A subscribe holds its slot while this runs, and a delivery's request timeout
-            // does not cover it, so a slow resolver counts as no answer.
-            Effect.timeout("5 seconds"),
-            Effect.mapError(
-              () => new WebhookAddressRejected({ message: `${host} could not be resolved` }),
-            ),
-          )).map((resolved) => resolved.address);
-    if (addresses.length === 0 || !addresses.every(isGloballyRoutable)) {
-      return yield* new WebhookAddressRejected({ message: `${host} is not a public address` });
+    if (!allowed.has(host)) {
+      return yield* new WebhookAddressRejected({
+        message: "The webhook host has not been explicitly allowed.",
+      });
     }
   });
   const lookup: NodeNet.LookupFunction = (hostname, lookupOptions, callback) => {
+    if (!allowed.has(hostname.toLowerCase())) {
+      return callback(
+        Object.assign(new Error("Webhook host is not allowed"), { code: "ECONNREFUSED" }),
+        "",
+      );
+    }
     NodeDns.lookup(hostname, { ...lookupOptions, all: true }, (error, addresses) => {
       if (error !== null) return callback(error, "");
-      if (
-        !allowed.has(hostname.toLowerCase()) &&
-        (addresses.length === 0 ||
-          addresses.some((address) => !isGloballyRoutable(address.address)))
-      ) {
-        return callback(
-          Object.assign(new Error(`${hostname} is not a public address`), {
-            code: "ECONNREFUSED",
-          }),
-          "",
-        );
-      }
+      if (addresses.length === 0) return callback(new Error("Webhook host has no addresses"), "");
       if (lookupOptions.all === true) return callback(null, addresses);
       const [first] = addresses;
       return callback(null, first!.address, first!.family);

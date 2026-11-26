@@ -142,6 +142,7 @@ private final class T3SocksConnection {
   private let onClose: (T3SocksConnection) -> Void
   private var received: [UInt8] = []
   private var greeted = false
+  private let tunnelSession = URLSession(configuration: .ephemeral, delegate: RefuseTunnelRedirect(), delegateQueue: nil)
   private var tunnel: URLSessionWebSocketTask?
   private var closed = false
   // Plain HTTP only: the page names the stand-in host, the environment's servers expect localhost.
@@ -176,6 +177,7 @@ private final class T3SocksConnection {
   func close() {
     guard !closed else { return }
     closed = true
+    tunnelSession.invalidateAndCancel()
     tunnel?.cancel(with: .normalClosure, reason: nil)
     connection.cancel()
     onClose(self)
@@ -232,7 +234,7 @@ private final class T3SocksConnection {
     ]
     guard let url = components.url else { return finish(socksReply(replyFailure)) }
     // The same budget as the access request, so a stalled upgrade refuses the page promptly.
-    let tunnel = URLSession.shared.webSocketTask(with: URLRequest(url: url, timeoutInterval: 15))
+    let tunnel = tunnelSession.webSocketTask(with: URLRequest(url: url, timeoutInterval: 15))
     tunnel.maximumMessageSize = 16 * 1024 * 1024
     self.tunnel = tunnel
     tunnel.resume()
@@ -382,5 +384,12 @@ final class T3TunnelDiagnostics {
     lock.withLock {
       "accepted \(counts.accepted), asked \(counts.asked), granted \(counts.granted), denied \(counts.denied), refused \(counts.refused), tunnel \(counts.tunnelError)"
     }
+  }
+}
+
+private final class RefuseTunnelRedirect: NSObject, URLSessionTaskDelegate {
+  func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                  newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+    completionHandler(nil)
   }
 }

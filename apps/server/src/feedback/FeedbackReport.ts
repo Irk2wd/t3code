@@ -7,9 +7,6 @@ import * as Struct from "effect/Struct";
 // Code points, as the scrubber caps them, so a valid input stays a valid report after redaction.
 const FeedbackText = Schema.String.check(Schema.isMaxCodePoints(300));
 
-/** Turns the outline of a requested report covers at least. */
-export const FEEDBACK_TRACE_TURNS = 5;
-
 const reportFields = {
   kind: AgentFeedbackKind,
   subject: Schema.String.annotate({ description: "T3 tool name, `t3` command, or `general`." }),
@@ -218,7 +215,7 @@ export const FEEDBACK_SUBJECT_MESSAGE =
 const T3_PREFIX = /^(?:mcp__t3[-_]?code(?:[-_]direct)?__|t3[-_]?code(?:[-_]direct)?[.:/])/iu;
 
 /** The bare name of a registered T3 tool however a provider prefixed it, else undefined. */
-export const resolveT3ToolName = (name: string, toolNames: ReadonlyArray<string>) => {
+const resolveT3ToolName = (name: string, toolNames: ReadonlyArray<string>) => {
   const tool = resolveT3McpToolId(name) ?? name.replace(T3_PREFIX, "");
   if (toolNames.includes(tool)) return tool;
   // OpenCode 2 prefixes tools with `t3-code-<thread>_`, underscores and all: the longest name wins.

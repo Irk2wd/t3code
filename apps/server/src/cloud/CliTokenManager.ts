@@ -223,7 +223,7 @@ export class CloudCliCredentialRefreshError extends Schema.TaggedError<CloudCliC
   }
 }
 
-export const isCloudCliCredentialRefreshError = Schema.is(CloudCliCredentialRefreshError);
+const isCloudCliCredentialRefreshError = Schema.is(CloudCliCredentialRefreshError);
 
 export class CloudCliCredentialReadError extends Schema.TaggedError<CloudCliCredentialReadError>()(
   "CloudCliCredentialReadError",

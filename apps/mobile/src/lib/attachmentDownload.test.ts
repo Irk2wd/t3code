@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   uuid: vi.fn(),
 }));
 
+vi.mock("./downloadFile", () => ({ downloadFile: mocks.download }));
+
 vi.mock("expo-file-system", () => {
   class Directory {
     readonly uri: string;
@@ -46,7 +48,6 @@ vi.mock("expo-file-system", () => {
   }
 
   class File {
-    static downloadFileAsync = mocks.download;
     readonly uri: string;
 
     constructor(source: Directory | string, name?: string) {

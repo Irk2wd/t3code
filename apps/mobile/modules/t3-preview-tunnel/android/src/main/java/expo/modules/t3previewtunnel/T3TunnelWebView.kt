@@ -141,13 +141,11 @@ class T3TunnelWebView(context: Context, appContext: AppContext) : ExpoView(conte
         pendingUrl?.let { loadUrl(it) }
       }
     }
-    // `*` loads everything directly, and the implicit-rule removal after it takes loopback back
-    // out of that bypass, the same split the desktop app makes with `*,<-loopback>`.
+    // The listener rejects non-loopback hosts, including subresource requests.
     // Older WebViews reject `socks5://`; their `socks://` is SOCKS4, which the listener speaks too.
     for (scheme in listOf("socks5", "socks")) {
       val config = ProxyConfig.Builder()
         .addProxyRule("$scheme://127.0.0.1:${listener.port}")
-        .addBypassRule("*")
         .removeImplicitRules()
         .build()
       val set = runCatching {

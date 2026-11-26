@@ -1,5 +1,3 @@
-import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
-
 /** Keep TRIAGE_PLAYBOOK byte-identical to .github/triage/PLAYBOOK.md after unescaping backticks and backslashes. */
 
 export const TRIAGE_PLAYBOOK = `# T3 Code triage playbook
@@ -174,34 +172,6 @@ export type TriageEntry =
 /** Windows .cmd shims cannot carry a multiline playbook in argv; point to the file instead. */
 export const buildTriageLaunchPrompt = (promptFilePath: string) =>
   `Read the file "${promptFilePath}" and follow its instructions exactly: it is your T3 Code triage playbook, and it starts with asking the user what went wrong.`;
-
-/**
- * The composer text an in-app session opens with. The file link renders as a
- * chip, and the user writes what went wrong after it, so the first turn
- * already carries the description.
- */
-export const buildTriageAppPrompt = (promptFilePath: string) =>
-  `Read ${serializeComposerFileLink(promptFilePath)} and follow it. `;
-
-export const buildTriageSeedPrompt = (input: {
-  readonly contextFilePath: string;
-  readonly entry: TriageEntry;
-}) => `A T3 Code user is having a problem with their install and started this \
-session ${input.entry.kind === "cli" ? "with `t3 triage`" : "from the T3 Code app"}.
-
-Machine facts (versions, OS, paths, server liveness) are in the triage context file:
-
-    ${input.contextFilePath}
-
-${
-  input.entry.kind === "cli"
-    ? "Follow the playbook below, starting by asking the user what went wrong."
-    : "Follow the playbook below. The message that sent you here may already describe what went wrong; if it does not, start by asking."
-}
-
----
-
-${TRIAGE_PLAYBOOK}`;
 
 /** A clone the server made before the session started, or why it could not. */
 export type TriageSourceClone =

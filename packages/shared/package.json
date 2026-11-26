@@ -3,6 +3,14 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./networkAccess": {
+      "types": "./src/networkAccess.ts",
+      "import": "./src/networkAccess.ts"
+    },
+    "./nodeNetworkAccess": {
+      "types": "./src/nodeNetworkAccess.ts",
+      "import": "./src/nodeNetworkAccess.ts"
+    },
     "./png": {
       "types": "./src/png.ts",
       "import": "./src/png.ts"

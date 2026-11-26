@@ -1,3 +1,4 @@
+import { restrictRendererNetwork } from "../electron/RendererNetwork.ts";
 // Renders another environment's localhost pages in a local webview: the partition's loopback
 // traffic goes to a SOCKS5 listener here, and each connection rides one WebSocket to the
 // environment's /api/preview/tunnel. The page keeps its localhost origin. Forwarded ports take
@@ -59,12 +60,6 @@ const isLoopbackName = (typed: string) => {
     })
   );
 };
-
-// `*://` matches only http and https, so WebSocket schemes are listed separately.
-const UNSPECIFIED_ADDRESS_URLS = ["http", "https", "ws", "wss"].flatMap((scheme) => [
-  `${scheme}://0.0.0.0/*`,
-  `${scheme}://[::]/*`,
-]);
 
 const sendUnspecifiedToLocalhost = (
   details: Electron.OnBeforeRequestListenerDetails,
@@ -654,13 +649,7 @@ const make = Effect.gen(function* () {
               },
         );
         // The bypass rules don't cover the unspecified address, so it would reach this machine.
-        if (port === null) session.webRequest.onBeforeRequest(null);
-        else {
-          session.webRequest.onBeforeRequest(
-            { urls: UNSPECIFIED_ADDRESS_URLS },
-            sendUnspecifiedToLocalhost,
-          );
-        }
+        restrictRendererNetwork(session, port !== null ? sendUnspecifiedToLocalhost : undefined);
         await session.closeAllConnections();
       },
       catch: (cause) => new LoopbackTunnelRouteError({ environmentId, cause }),

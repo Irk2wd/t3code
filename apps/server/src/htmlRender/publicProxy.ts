@@ -1,3 +1,4 @@
+import { configuredNetworkOrigins } from "@t3tools/shared/networkAccess";
 // @effect-diagnostics nodeBuiltinImport:off - Effect has no SOCKS proxy or address block list.
 import * as NodeDnsPromises from "node:dns/promises";
 import * as NodeNet from "node:net";
@@ -82,7 +83,11 @@ const isLocal = (address: string, family: number): boolean => {
 };
 
 // Connect only to checked addresses to prevent DNS rebinding.
-const publicAddresses = async (host: string, fakeIpHosts: Map<string, string>) => {
+const publicAddresses = async (host: string, port: number, fakeIpHosts: Map<string, string>) => {
+  const allowed = configuredNetworkOrigins(process.env.T3CODE_ALLOWED_ORIGINS);
+  const hostname = NodeNet.isIPv6(host) ? "[" + host + "]" : host;
+  const origin = "https://" + hostname + (port === 443 ? "" : ":" + port);
+  if (!allowed.has(origin)) return undefined;
   const addresses = NodeNet.isIP(host)
     ? [{ address: host, family: NodeNet.isIP(host) }]
     : await NodeDnsPromises.lookup(host, { all: true, verbatim: true }).catch(() => []);
@@ -172,7 +177,7 @@ export const publicProxy = Effect.acquireRelease(
           early.push(chunk);
         };
         client.on("data", holdEarly);
-        void publicAddresses(request.host, fakeIpHosts).then((addresses) => {
+        void publicAddresses(request.host, request.port, fakeIpHosts).then((addresses) => {
           if (client.destroyed) return;
           client.off("data", holdEarly);
           if (addresses === undefined) return refuse(client, 2);

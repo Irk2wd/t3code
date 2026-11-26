@@ -1,3 +1,4 @@
+import { permittedMobileUrl } from "../../connection/networkDestinations";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 import type { PullRequestActor } from "@t3tools/contracts";
@@ -52,7 +53,7 @@ export function PullRequestAvatar(props: {
   readonly size?: number;
 }) {
   const size = props.size ?? 24;
-  return props.actor?.avatarUrl ? (
+  return props.actor?.avatarUrl && permittedMobileUrl(props.actor.avatarUrl) ? (
     <Image
       source={{ uri: props.actor.avatarUrl }}
       recyclingKey={props.actor.avatarUrl}

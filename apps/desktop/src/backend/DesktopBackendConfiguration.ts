@@ -99,6 +99,7 @@ const WSL_FORWARDED_ENV_NAMES = [
   // Otherwise the WSL server keeps exporting to endpoints from the bootstrap.
   "T3CODE_OTEL_SDK_DISABLED",
   "OTEL_SDK_DISABLED",
+  "T3CODE_ALLOWED_ORIGINS",
   "T3CODE_OTLP_HEADERS",
   "T3CODE_OTLP_PROTOCOL",
   // Untranslated T3 URLs must override bootstrap endpoints inside WSL, as they do on Windows.

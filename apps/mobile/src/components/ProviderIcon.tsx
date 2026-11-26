@@ -6,8 +6,7 @@ import {
   providerAccentForegroundColor,
   providerInstanceInitials,
 } from "@t3tools/client-runtime/state/provider-instance-display";
-import { useId, useState } from "react";
-import { resolveOfficialAcpRegistryIconUrl } from "@t3tools/contracts";
+import { useId } from "react";
 import { useAppearancePreferences } from "../features/settings/appearance/AppearancePreferencesProvider";
 import { AppText as Text } from "./ui/AppText";
 import { cn } from "../lib/cn";
@@ -30,44 +29,6 @@ function AcpRegistryFallbackIcon(props: { readonly color: string; readonly size:
   );
 }
 
-function AcpRegistryProviderIcon(props: {
-  readonly color: string;
-  readonly iconUrl: string | null | undefined;
-  readonly size: number;
-}) {
-  const iconUrl = resolveOfficialAcpRegistryIconUrl(props.iconUrl);
-  const [image, setImage] = useState<{
-    readonly iconUrl: string;
-    readonly status: "loaded" | "failed";
-  } | null>(null);
-  const currentImage = image?.iconUrl === iconUrl ? image : null;
-  const loaded = currentImage?.status === "loaded";
-
-  return (
-    <View style={{ width: props.size, height: props.size }}>
-      {!loaded ? <AcpRegistryFallbackIcon color={props.color} size={props.size} /> : null}
-      {iconUrl !== null && currentImage?.status !== "failed" ? (
-        <Image
-          accessibilityIgnoresInvertColors
-          cachePolicy="memory-disk"
-          contentFit="contain"
-          recyclingKey={iconUrl}
-          source={{ uri: iconUrl }}
-          style={{
-            position: "absolute",
-            width: props.size,
-            height: props.size,
-            opacity: loaded ? 1 : 0,
-            tintColor: props.color,
-          }}
-          onError={() => setImage({ iconUrl, status: "failed" })}
-          onLoad={() => setImage({ iconUrl, status: "loaded" })}
-        />
-      ) : null}
-    </View>
-  );
-}
-
 export function ProviderIcon(props: ProviderIconProps) {
   const { themeAppearance } = useAppearancePreferences();
   const isDarkMode = themeAppearance === "dark";
@@ -85,7 +46,7 @@ export function ProviderIcon(props: ProviderIconProps) {
     );
   }
   if (props.provider === "acpRegistry") {
-    return <AcpRegistryProviderIcon color={mono} iconUrl={props.iconUrl} size={size} />;
+    return <AcpRegistryFallbackIcon color={mono} size={size} />;
   }
 
   if (props.provider === "claudeAgent") {
@@ -160,11 +121,7 @@ export function providerInstanceNameLabel(props: {
   readonly displayName: string;
   readonly showBadge: boolean;
 }): string | null {
-  return props.showBadge &&
-    props.provider === "acpRegistry" &&
-    resolveOfficialAcpRegistryIconUrl(props.iconUrl) === null
-    ? props.displayName
-    : null;
+  return props.showBadge && props.provider === "acpRegistry" ? props.displayName : null;
 }
 
 export function ProviderInstanceIcon(props: {

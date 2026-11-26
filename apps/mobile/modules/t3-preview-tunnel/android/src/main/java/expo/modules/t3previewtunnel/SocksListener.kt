@@ -41,7 +41,7 @@ internal enum class TunnelFailure(val cause: String) {
   }
 }
 
-private val client = OkHttpClient.Builder().readTimeout(0, TimeUnit.MILLISECONDS).build()
+private val client = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).readTimeout(0, TimeUnit.MILLISECONDS).build()
 
 // The webview names the host as typed, so IP literals can also arrive as domain names.
 private fun isLoopbackName(name: String): Boolean {

@@ -1,3 +1,4 @@
+import { permittedMobileUrl } from "../../connection/networkDestinations";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { requireNativeModule, requireNativeView } from "expo";
 import { useRef, type Ref } from "react";
@@ -107,8 +108,9 @@ export function TunnelWebView({
         {...(Platform.OS === "ios" ? { topInset: topInset ?? 0 } : {})}
         onAccessRequest={({ nativeEvent }) => {
           void readPreviewTunnelUrl(environmentId).then((tunnelUrl) => {
-            onAccess?.(tunnelUrl !== null);
-            PreviewTunnel.resolveAccess(nativeEvent.requestId, tunnelUrl);
+            const permitted = tunnelUrl !== null && permittedMobileUrl(tunnelUrl);
+            onAccess?.(permitted);
+            PreviewTunnel.resolveAccess(nativeEvent.requestId, permitted ? tunnelUrl : null);
           });
         }}
         onNavigationChange={({ nativeEvent }) => onNavigationChange(nativeEvent)}

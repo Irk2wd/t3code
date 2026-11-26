@@ -1,3 +1,4 @@
+import { installApplicationNetworkPolicy } from "@t3tools/shared/nodeNetworkAccess";
 // @effect-diagnostics nodeBuiltinImport:off -- The service launcher starts before the CLI runtime.
 import * as NodeModule from "node:module";
 import * as NodeSea from "node:sea";
@@ -39,6 +40,7 @@ if (
     runtimeMain: import.meta.main,
   })
 ) {
+  installApplicationNetworkPolicy();
   // Logs go to stdout and stderr, which may be a closed desktop launcher pipe or a log file on
   // a full disk. Node emits a failed write as an unhandled stream error that crashes the process
   // and skips shutdown, so drop the line instead.

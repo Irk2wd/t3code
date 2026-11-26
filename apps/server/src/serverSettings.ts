@@ -130,7 +130,17 @@ const normalizeServerSettings = (
     Effect.flatMap(decodeServerSettings),
     Effect.map(foldProviderInstanceEnabledFlags),
     Effect.map((next) => withIdleCompaction(next, globalIdleCompaction(next))),
-    Effect.map((next) => ({ ...next, ...deriveLegacyProjectOverrides(next) })),
+    Effect.map((next) => ({
+      ...next,
+      ...deriveLegacyProjectOverrides(next),
+      agentFeedback: { mode: "off" as const },
+      observability: {
+        ...next.observability,
+        otlpTracesUrl: "",
+        otlpMetricsUrl: "",
+        otlpLogsUrl: "",
+      },
+    })),
     Effect.mapError(
       (cause) =>
         new ServerSettingsError({

@@ -1,38 +1,25 @@
-# Product usage data and diagnostics
+# Network access in the Irk2wd fork
 
-T3 Code sends lightweight product usage events and relay connection traces to keep the app reliable and fast. Prompts, responses, file contents, and credentials are never included (unless you explicitly approve an [agent feedback](#agent-feedback) card with conversation text attached).
+T3 runs its existing desktop and web interface against a local server. Installed agent CLIs keep their own sign-in, proxy settings and model connections. The fork disables T3 Connect, push publication, product analytics, feedback submission, crash uploads, external OpenTelemetry export and application updates.
 
-## Product usage events
+## Default destinations
 
-The server sends usage events to `ingest.t3.codes` under a hashed random install ID (plus a hashed T3 Connect account ID when signed in, and random client device IDs). Events contain provider, catalog model name (non-catalog models report as custom), reasoning effort, permission mode, turn/request outcome, duration, release channel, and token counts.
+| Operation                             | Destination                                                                                                           | What leaves the machine                                                                                                                                                                                   |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Desktop or browser session            | The local T3 backend, normally on loopback                                                                            | Session authentication, project data and conversation traffic needed to operate the UI                                                                                                                    |
+| Model catalog refresh                 | The exact `model-manifest.json` file in `pingdotgg/t3code` on `raw.githubusercontent.com`                             | An HTTPS GET. T3 removes caller-supplied headers, query parameters are refused, and the receiver sees the connection IP                                                                                   |
+| T3-managed model and sign-in requests | Designated routes on `auth.openai.com`, `api.openai.com`, `api.anthropic.com` and `generativelanguage.googleapis.com` | Depending on the operation, OAuth data, a model list request, a quota request or the model input. The permitted methods and paths are in the request policy                                               |
+| Installed agent CLI                   | The provider and endpoints configured in that CLI                                                                     | T3 passes the selected task and context to the CLI. The CLI controls its network traffic and credential exchange                                                                                          |
+| Git operations                        | The remote configured for the project                                                                                 | Git exchanges repository references and objects as required. Run `git remote -v` in the project to see its destinations. SSH configuration, Git URL rewrites, proxies and credential helpers apply to Git |
 
-## Disable telemetry
+The Git integration also uses the selected project's forge through its configured CLI for pull request and issue operations. A background status refresh can contact that forge. T3 does not query your account for a star on the upstream project.
 
-- **Server / CLI**: Set `T3CODE_TELEMETRY_ENABLED=false` or `DO_NOT_TRACK=1` before starting (`DO_NOT_TRACK=1` takes precedence). CI environments (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `JENKINS_URL`) disable telemetry by default unless `T3CODE_TELEMETRY_ENABLED=true`.
-- **Desktop app**: Export `T3CODE_TELEMETRY_ENABLED=false` or `DO_NOT_TRACK=1` in your shell profile (macOS/Linux) or user environment variables (Windows) and restart.
-- **Managed policy**: Administrators can set `"telemetry": false` in [managed policy](./managed-policy.md#other-capabilities) for servers and desktop apps.
-- **Mobile app**: Toggle **Send crash reports** and **Send connection traces** separately in **Settings → About T3 Code → Diagnostics**.
+The server uses its bundled model manifest when a refresh is unavailable. Application HTTP redirects are rejected before a follow-up request. Product events, device and installation identifiers, feedback transcripts, relay notifications and diagnostic payloads have no external delivery path in this build. Local conversations, logs and resource measurements remain available on the machine running the server.
 
-## Relay connection diagnostics
+## Explicit destinations
 
-T3 Connect sends connection timings, request paths, environment/thread IDs, and error types (no addresses, logs, or stack frames) to Axiom. Disabled by the server telemetry opt-outs above or by `T3CODE_OTEL_SDK_DISABLED` / `OTEL_SDK_DISABLED`.
+Set `T3CODE_ALLOWED_ORIGINS` before starting T3 to permit additional HTTPS origins, for example `https://models.example.org:8443`. Separate multiple entries with commas. Each entry grants the exact scheme, hostname and port. It can receive requests, including credentials explicitly configured for it. A wildcard, path, query or fragment grants no access. Restart T3 after changing the list. Mobile builds use `EXPO_PUBLIC_T3CODE_ALLOWED_ORIGINS` for their own server origins. The browser UI uses its serving origin and loopback for its own traffic.
 
-## Agent feedback
+Model CLIs, the user's Git and SSH executables, an explicitly opened system browser, user-launched terminal commands and build tools run separately from T3's HTTP client. Their own settings determine any additional network access. An explicitly configured proxy can see the connection to the approved destination.
 
-Optional tool for agents to report T3 Code bugs or missing capabilities. Configure in **Settings → Labs → Agent feedback**:
-
-- **Off** (default): Feedback tools and `t3 feedback` are disabled.
-- **When I ask**: Agents submit a report only when you ask, shown as an interactive approval card before anything leaves your machine.
-- **Automatic**: Also sends minimal automated reports (problem kind + tool/command name only—no text or conversation) when an agent hits a T3 tool failure; enables `t3 feedback` CLI reporting (up to 10/hour).
-
-Approval cards show exact payloads (expected/actual/workaround, turn outline with no text, and optional **Include the conversation** up to 16 KB). File paths, usernames, hostnames, git remotes, and secret-like strings are scrubbed before saving, and reports use one-off random IDs. Inspect local reports with `t3 feedback list [--json]`.
-
-## Agent activity for mobile notifications
-
-**Settings → Sharing & access → Publish agent activity** sends project/thread titles, model names, and turn status to the T3 Connect relay for [mobile notifications and live activities](./mobile-notifications.md). This is independent of telemetry—turn it off directly on the host if you don't want it.
-
-## Export diagnostics to your own OpenTelemetry receiver
-
-Open **Settings → Maintenance → Diagnostics** (per environment) and enter OTLP HTTP endpoints (e.g. `http://localhost:4318/v1/traces`), save, and restart the server. Use **Test** to verify connectivity.
-
-`T3CODE_OTLP_*_URL` and standard `OTEL_EXPORTER_OTLP_*` env vars override saved settings (use `T3CODE_OTLP_HEADERS` / `T3CODE_OTLP_PROTOCOL=http/protobuf` or the standard `OTEL_EXPORTER_OTLP_*` equivalents for auth and protobuf).
+Build this checkout to use these changes. Upstream package managers and app-store downloads deliver the upstream application. [Exact request policy](../../packages/shared/src/networkAccess.ts) · [Local build instructions](../../README.md)

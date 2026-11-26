@@ -73,20 +73,6 @@ class T3ComposerEditorView(context: Context, appContext: AppContext) : ExpoView(
   private var contentInsetVertical = 0
   private var tokensJson = "[]"
   private var tokens: List<ComposerToken> = emptyList()
-  private val redrawChipsWithIcon: (String) -> Unit = { uri ->
-    editor.text?.let { editable ->
-      editable.getSpans(0, editable.length, ComposerChipSpan::class.java)
-        .filter { it.iconUri == uri }
-        .forEach {
-          editable.setSpan(
-            it,
-            editable.getSpanStart(it),
-            editable.getSpanEnd(it),
-            editable.getSpanFlags(it)
-          )
-        }
-    }
-  }
   private var autoCorrect = true
   private var spellCheck = true
   private var nativeEventCount = 0
@@ -500,7 +486,7 @@ class T3ComposerEditorView(context: Context, appContext: AppContext) : ExpoView(
       if (token.start < 0 || token.end <= token.start || token.end > editable.length) return@forEach
       val expectedSource = editable.substring(token.start, token.end)
       if (expectedSource != token.source) return@forEach
-      T3ChipIcons.load(context, token.iconUri, redrawChipsWithIcon)
+      T3ChipIcons.load(context, token.iconUri)
       editable.setSpan(
         ComposerChipSpan(
           T3ContextChip(

@@ -1,3 +1,4 @@
+import { permittedMobileUrl } from "../../connection/networkDestinations";
 import * as Dialog from "./Dialog";
 import { requireNativeModule } from "expo";
 import { msg, useGT } from "gt-react-native";
@@ -37,7 +38,8 @@ const NativeControls = requireNativeModule<{
 }>("T3NativeControls");
 
 // Null tells the viewer an image failed; undefined means its URL has not arrived yet.
-const nativeUri = (image: FilePreviewImage) => (image.failed ? null : image.uri);
+const nativeUri = (image: FilePreviewImage) =>
+  image.failed || (image.uri && !permittedMobileUrl(image.uri)) ? null : image.uri;
 
 function NativeFilePreview(props: FilePreviewViewerProps) {
   const gt = useGT();
@@ -65,7 +67,7 @@ function NativeFilePreview(props: FilePreviewViewerProps) {
       const { images, selectedIndex } = presented;
       delivered.current = images.map((image) => image.uri);
       presentation = NativeControls.presentFiles(
-        images.map((image) => image.uri ?? null),
+        images.map((image) => nativeUri(image) ?? null),
         images.map(
           (image) => image.name ?? m(msg("Preview", { $context: "noun, preview window title" })),
         ),
@@ -75,6 +77,11 @@ function NativeFilePreview(props: FilePreviewViewerProps) {
       );
     } else {
       const { uri, name, sourceIdentifier } = presented;
+      if (!permittedMobileUrl(uri)) {
+        onOpenError(new Error("Unconfigured preview destination."));
+        onRequestClose();
+        return;
+      }
       presentation = NativeControls.presentFile(
         uri,
         name ?? m(msg("Preview", { $context: "noun, preview window title" })),

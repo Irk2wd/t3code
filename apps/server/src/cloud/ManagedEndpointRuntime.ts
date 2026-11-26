@@ -152,7 +152,7 @@ const encodeHttp2Fallback = Schema.encodeSync(Http2Fallback);
 // than this, so a crash-looping connector or an offline host does not redownload
 // on every reconcile.
 const RELAY_CLIENT_INSTALL_RETRY_INTERVAL_MS = 10 * 60_000;
-export const RELAY_CLIENT_LOG_FILE = "relay-client.ndjson";
+const RELAY_CLIENT_LOG_FILE = "relay-client.ndjson";
 
 /** Preserve user-chosen PATH binaries and overrides; CLI downloads require consent. */
 function needsPinnedRelayClient(executable: RelayClient.RelayClientStatus): boolean {
@@ -193,16 +193,6 @@ export function isRejectedRelayClientTunnelOutput(line: string): boolean {
       line,
     )
   );
-}
-
-export function isRetryableManagedEndpointRuntimeStatus(status: unknown): boolean {
-  if (typeof status !== "object" || status === null || !("status" in status)) {
-    return false;
-  }
-  if (status.status !== "failed" || !("failure" in status)) {
-    return false;
-  }
-  return status.failure === "not-installed" || status.failure === "spawn-failed";
 }
 
 function runtimeConfigKey(config: RelayManagedEndpointRuntimeConfig): string {

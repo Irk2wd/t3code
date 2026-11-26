@@ -1,3 +1,4 @@
+import { configuredNetworkOrigins } from "@t3tools/shared/networkAccess";
 // @effect-diagnostics nodeBuiltinImport:off globalTimers:off -- Owns Playwright resources and their idle timer outside the Effect runtime.
 import { INCOGNITO_BROWSER_PROFILE_ID } from "@t3tools/contracts";
 import { constVoid } from "effect/Function";
@@ -149,12 +150,20 @@ export class ServerBrowserContexts {
   private async launchOptions() {
     const executable = await this.options.executable();
     const env = this.options.env ?? process.env;
+    const approved = configuredNetworkOrigins(env.T3CODE_ALLOWED_ORIGINS);
+    const bypass = ["localhost", "127.0.0.1", "[::1]", ...approved];
     // A page's override never reaches its workers, so the browser itself must name Chrome.
     const userAgent = chromeUserAgent(this.options.chrome);
     return {
       executable,
       env,
       args: [
+        "--disable-background-networking",
+        "--disable-quic",
+        "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
+        // Port zero cannot host a proxy. Chrome connects directly only to listed destinations.
+        "--proxy-server=http://127.0.0.1:0",
+        "--proxy-bypass-list=" + bypass.join(";"),
         "--disable-gpu",
         "--force-device-scale-factor=2",
         "--disable-blink-features=AutomationControlled",

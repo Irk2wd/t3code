@@ -1,3 +1,4 @@
+import { checkMobileNetworkUrl } from "../connection/networkDestinations";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Socket from "effect/socket/Socket";
@@ -180,6 +181,7 @@ function layerFromModule(native: NativeModule): Layer.Layer<Socket.WebSocketCons
         if (options !== undefined && typeof options !== "string" && !Array.isArray(options)) {
           throw new TypeError("WebSocket client options are not supported by the native WebSocket");
         }
+        checkMobileNetworkUrl(String(url));
         return new Connection(sockets, url, options);
       },
     ),

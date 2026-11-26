@@ -17,6 +17,7 @@ import { afterEach, vi } from "vite-plus/test";
 
 import packageJson from "../../package.json" with { type: "json" };
 import * as BootService from "../cloud/bootService.ts";
+import { hostShellWord } from "./invocation.ts";
 import { upsertServiceEnv } from "./service.ts";
 import { connectEnabled, planRoutes, statusCommand, upCommand } from "./up.ts";
 
@@ -403,7 +404,11 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer, NetService.layer))
         ),
       );
       for (const line of input.prints ?? []) {
-        expect(lines.join("\n")).toContain(line.replace("<baseDir>", baseDir));
+        const platform = yield* HostProcess.Platform;
+        const expected = line.replace(/--base-dir|<baseDir>|--no-lan/g, (arg) =>
+          hostShellWord(platform, arg === "<baseDir>" ? baseDir : arg),
+        );
+        expect(lines.join("\n")).toContain(expected);
       }
       if (input.omits !== undefined) {
         expect(lines.join("\n")).not.toContain(input.omits);

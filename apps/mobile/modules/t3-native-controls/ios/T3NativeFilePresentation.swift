@@ -218,7 +218,9 @@ final class T3NativeFilePresentation: NSObject, QLPreviewControllerDataSource,
       return url.absoluteString.lowercased().hasPrefix("data:image/svg+xml") ? "image/svg+xml" : nil
     }
     guard ["https", "http"].contains(url.scheme?.lowercased() ?? "") else { throw URLError(.unsupportedURL) }
-    let (temporaryFile, response) = try await URLSession.shared.download(from: url)
+    let session = URLSession(configuration: .ephemeral, delegate: RefusePreviewRedirect(), delegateQueue: nil)
+    defer { session.finishTasksAndInvalidate() }
+    let (temporaryFile, response) = try await session.download(from: url)
     guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
       throw URLError(.badServerResponse)
     }
@@ -268,5 +270,12 @@ final class T3NativeFilePresentation: NSObject, QLPreviewControllerDataSource,
       try? FileManager.default.removeItem(at: directory)
       throw error
     }
+  }
+}
+
+private final class RefusePreviewRedirect: NSObject, URLSessionTaskDelegate {
+  func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                  newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+    completionHandler(nil)
   }
 }

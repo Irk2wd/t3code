@@ -64,7 +64,7 @@ export const BOOT_SERVICE_UNIT_FILE = `${BOOT_SERVICE_NAME}.service`;
 // (com.t3tools.t3code), so launchd and TCC records never collide.
 export const BOOT_SERVICE_LAUNCHD_LABEL = "com.t3tools.t3code.service";
 export const BOOT_SERVICE_PLIST_FILE = `${BOOT_SERVICE_LAUNCHD_LABEL}.plist`;
-export const BOOT_SERVICE_LOG_FILE = "boot-service.log";
+const BOOT_SERVICE_LOG_FILE = "boot-service.log";
 /** `schtasks /Query /HRESULT` exits with this when the task is not registered. */
 const WINDOWS_TASK_NOT_FOUND = 0x80070002;
 /** Task Scheduler keeps its own copy; this one lets status and repair read the task back. */
@@ -607,24 +607,6 @@ const readSystemdUnitDirectory = Effect.fn("cloud.boot_service.read_systemd_unit
   },
   Effect.orElseSucceed(() => undefined),
 );
-
-/** Where this platform's service manager keeps the unit, whether or not one is installed. */
-export const bootServiceUnitPath = Effect.fn("cloud.boot_service.unit_path")(function* () {
-  const path = yield* Path.Path;
-  const platform = yield* HostProcess.Platform;
-  const homeDir = yield* HostProcess.HomeDirectory;
-  if (homeDir === "") return undefined;
-  if (platform === "darwin") return launchdPlistPath(path, homeDir);
-  if (platform === "win32") {
-    const localAppData = (yield* HostProcess.Environment).LOCALAPPDATA ?? "";
-    return localAppData === "" ? undefined : scheduledTaskPath(path, localAppData);
-  }
-  if (platform !== "linux") return undefined;
-  const unitDir =
-    (yield* readSystemdUnitDirectory(yield* ProcessRunner.ProcessRunner)) ??
-    defaultSystemdUnitDir(path, homeDir, (yield* HostProcess.Environment).XDG_CONFIG_HOME ?? "");
-  return path.join(unitDir, BOOT_SERVICE_UNIT_FILE);
-});
 
 export class BootServiceUnsupportedError extends Schema.TaggedError<BootServiceUnsupportedError>()(
   "BootServiceUnsupportedError",

@@ -174,6 +174,11 @@ private final class SessionDelegate: NSObject, URLSessionWebSocketDelegate {
     self.module = module
   }
 
+  func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                  newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+    completionHandler(nil)
+  }
+
   func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
     module?.didOpen(task: webSocketTask)
   }

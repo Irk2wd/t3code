@@ -1,5 +1,6 @@
 import type { ChatFileAttachment } from "@t3tools/contracts";
 import type { Directory } from "expo-file-system";
+import { downloadFile } from "./downloadFile";
 import type { SharingOptions } from "expo-sharing";
 import { msg } from "gt-react-native";
 
@@ -182,7 +183,7 @@ export async function openAttachmentInViewer(input: {
     if (/^(file|content):/.test(input.uri)) {
       await new File(input.uri).copy(cached.file);
     } else {
-      await File.downloadFileAsync(input.uri, cached.file, { signal: input.signal });
+      await downloadFile(input.uri, cached.file, { signal: input.signal });
     }
     if (input.signal.aborted) return;
     const endHandoff = beginForegroundHandoff();
@@ -209,14 +210,13 @@ export async function downloadAttachmentForPreview(input: {
   readonly signal: AbortSignal;
 }): Promise<AttachmentPreviewFile | null> {
   if (input.signal.aborted) return null;
-  const { File } = await import("expo-file-system");
   const cached = await createCachedAttachmentFile(input.attachment);
   try {
     if (input.signal.aborted) {
       cached.preview.dispose();
       return null;
     }
-    await File.downloadFileAsync(input.url, cached.file, { signal: input.signal });
+    await downloadFile(input.url, cached.file, { signal: input.signal });
     if (input.signal.aborted) {
       cached.preview.dispose();
       return null;

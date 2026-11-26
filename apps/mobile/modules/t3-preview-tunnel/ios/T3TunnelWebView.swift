@@ -273,8 +273,7 @@ private final class T3EnvironmentProxy {
     var proxy = ProxyConfiguration(
       socksv5Proxy: .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: proxyPort)!)
     )
-    // Only the stand-in host belongs to the environment; everything else loads directly.
-    proxy.matchDomains = [T3Loopback.standInHost]
+    // Route all preview traffic through the listener, which rejects non-loopback hosts.
     proxy.allowFailover = false
     store.proxyConfigurations = [proxy]
     dataStore = store
