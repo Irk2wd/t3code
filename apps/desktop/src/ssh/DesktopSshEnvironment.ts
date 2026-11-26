@@ -3,7 +3,6 @@ import type {
   DesktopSshEnvironmentBootstrap,
   DesktopSshEnvironmentTarget,
 } from "@t3tools/contracts";
-import { CLI_RELEASE_BASE_URL_ENV } from "@t3tools/shared/cliRelease";
 import * as NetService from "@t3tools/shared/Net";
 import * as SshAuth from "@t3tools/ssh/auth";
 import { resolveSshTarget } from "@t3tools/ssh/command";
@@ -81,20 +80,11 @@ export interface DesktopSshEnvironmentLayerOptions {
 
 export const resolveDesktopSshCliRunner = (
   environment: DesktopEnvironment.DesktopEnvironment["Service"],
-  env: NodeJS.ProcessEnv,
 ): SshTunnel.RemoteT3RunnerOptions => {
-  const devRemoteEntryPath = Option.getOrUndefined(environment.devRemoteT3ServerEntryPath);
-  if (environment.isDevelopment && devRemoteEntryPath !== undefined) {
-    return {
-      nodeScriptPath: devRemoteEntryPath,
-      nodeEngineRange: serverPackageJson.engines.node,
-    };
-  }
-  const releaseBaseUrl = env[CLI_RELEASE_BASE_URL_ENV]?.trim() || undefined;
-  return {
-    archiveVersion: environment.appVersion,
-    ...(releaseBaseUrl === undefined ? {} : { releaseBaseUrl }),
-  };
+  const nodeScriptPath = Option.getOrUndefined(environment.devRemoteT3ServerEntryPath);
+  return nodeScriptPath === undefined
+    ? {}
+    : { nodeScriptPath, nodeEngineRange: serverPackageJson.engines.node };
 };
 
 // Remote servers record this ID as their owner, so it has to outlive restarts,

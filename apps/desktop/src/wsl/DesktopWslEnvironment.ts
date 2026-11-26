@@ -507,7 +507,9 @@ const NODE_PTY_BUILD_SCRIPT = (linuxServerDir: string) =>
     `cd ${shellQuote(linuxServerDir)}`,
     `pkg_dir=$(node -p "require('node:path').dirname(require.resolve('node-pty/package.json'))")`,
     `cd "$pkg_dir"`,
-    "npx --yes node-gyp rebuild",
+    'headers="${npm_config_nodedir:-$(dirname "$(dirname "$(node -p process.execPath)")")}"',
+    'test -f "$headers/include/node/node.h" || { echo "Install local Node headers or set npm_config_nodedir before using the WSL build." >&2; exit 1; }',
+    'node-gyp rebuild --nodedir="$headers"',
     `node -e 'require("node-pty")'`,
   ].join("\n");
 

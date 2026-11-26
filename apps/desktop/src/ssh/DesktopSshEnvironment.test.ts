@@ -1,9 +1,9 @@
 import * as NodePath from "@effect/platform-node/NodePath";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import { CLI_RELEASE_BASE_URL_ENV } from "@t3tools/shared/cliRelease";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 
 import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
@@ -30,18 +30,17 @@ const packagedEnvironment = DesktopEnvironment.DesktopEnvironment.pipe(
 );
 
 describe("resolveDesktopSshCliRunner", () => {
-  it.effect("downloads the remote runner from the release mirror", () =>
+  it.effect("requires an explicitly configured fork entry point even in packaged builds", () =>
     Effect.gen(function* () {
       const environment = yield* packagedEnvironment;
-
-      const runner = resolveDesktopSshCliRunner(environment, {
-        [CLI_RELEASE_BASE_URL_ENV]: "https://mirror.example.com/t3code",
+      assert.deepStrictEqual(resolveDesktopSshCliRunner(environment), {});
+      const entry = "/opt/t3-fork/apps/server/dist/bin.mjs";
+      const runner = resolveDesktopSshCliRunner({
+        ...environment,
+        devRemoteT3ServerEntryPath: Option.some(entry),
       });
-
-      assert.deepStrictEqual(runner, {
-        archiveVersion: "0.0.22",
-        releaseBaseUrl: "https://mirror.example.com/t3code",
-      });
+      assert.strictEqual(runner.nodeScriptPath, entry);
+      assert.isUndefined(runner.archiveVersion);
     }),
   );
 });

@@ -20,6 +20,8 @@ The server uses its bundled model manifest when a refresh is unavailable. Applic
 
 Set `T3CODE_ALLOWED_ORIGINS` before starting T3 to permit additional HTTPS origins, for example `https://models.example.org:8443`. Separate multiple entries with commas. Each entry grants the exact scheme, hostname and port. It can receive requests, including credentials explicitly configured for it. A wildcard, path, query or fragment grants no access. Restart T3 after changing the list. Mobile builds use `EXPO_PUBLIC_T3CODE_ALLOWED_ORIGINS` for their own server origins. The browser UI uses its serving origin and loopback for its own traffic.
 
+SSH environments use a server you built on the selected host. Set `T3CODE_DEV_REMOTE_T3_SERVER_ENTRY_PATH` to its absolute `apps/server/dist/bin.mjs` path before starting the desktop app. The SSH launcher does not download a release. Development builds using WSL require locally installed build tools and Node headers for native modules.
+
 Model CLIs, the user's Git and SSH executables, an explicitly opened system browser, user-launched terminal commands and build tools run separately from T3's HTTP client. Their own settings determine any additional network access. An explicitly configured proxy can see the connection to the approved destination.
 
 Build this checkout to use these changes. Upstream package managers and app-store downloads deliver the upstream application. [Exact request policy](../../packages/shared/src/networkAccess.ts) · [Local build instructions](../../README.md)
