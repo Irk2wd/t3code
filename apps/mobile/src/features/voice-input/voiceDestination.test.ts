@@ -1,6 +1,6 @@
 import { EnvironmentId } from "@t3tools/contracts";
 import { Atom } from "effect/reactivity";
-import { expect, it, vi } from "vite-plus/test";
+import { afterAll, expect, it, vi } from "vite-plus/test";
 import { appAtomRegistry } from "../../state/atom-registry";
 import {
   chooseVoiceDestination,
@@ -9,6 +9,9 @@ import {
   voiceRouteAtom,
 } from "./voiceDestination";
 import { readVoiceGrant } from "./voiceGrantStorage";
+
+vi.hoisted(() => vi.stubEnv("EXPO_PUBLIC_T3CODE_ALLOWED_ORIGINS", "https://my-server.test"));
+afterAll(() => vi.unstubAllEnvs());
 
 const mocks = vi.hoisted(() => ({
   read: vi.fn<() => Promise<string | null>>(async () => null),

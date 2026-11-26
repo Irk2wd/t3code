@@ -85,7 +85,7 @@ export class PinnedRuntimeInstallError extends Schema.TaggedError<PinnedRuntimeI
   }
 }
 
-export class PinnedRuntimePreflightBlockedError extends Schema.TaggedError<PinnedRuntimePreflightBlockedError>()(
+class PinnedRuntimePreflightBlockedError extends Schema.TaggedError<PinnedRuntimePreflightBlockedError>()(
   "PinnedRuntimePreflightBlockedError",
   {
     version: Schema.String,
