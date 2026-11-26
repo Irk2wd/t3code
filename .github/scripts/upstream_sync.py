@@ -24,6 +24,18 @@ STYLES = {
     "apps/web/src/components/files/pdfViewer.css",
 }
 FORK_GUIDES = {"telemetry.md", "install.md", "remote-access.md", "updating.md"}
+# These paths can enter the read-only source analysis. They grant no merge permission.
+UI_SOURCE = re.compile(r"apps/web/src/(?:(?:components|lib)/(?:[A-Za-z0-9_-]+/)*)?[A-Za-z][A-Za-z0-9_-]*(?:\.test)?\.tsx?")
+PRIVATE_AREA = re.compile(r"auth|account|analytics|approval|bridge|clerk|cloud|connect|consent|cookie|credential|"
+                          r"diagnostic|encrypt|feedback|identity|log(?:ger|ging)|mask|mcp|network|permission|policy|"
+                          r"privacy|provider|proxy|redact|relay|remote|rpc|secret|sensitive|session|socket|storage|"
+                          r"telemetry|token|tracking|transport|upload|update|webhook", re.I)
+
+
+def local_feature_path(path):
+    relative = path.removeprefix("apps/web/src/")
+    return bool(UI_SOURCE.fullmatch(path)) and not PRIVATE_AREA.search(relative) and not Path(path).name.startswith("index.")
+
 # Same property and location. Only literal colors, sizes and spacing can change.
 DECLARATION = re.compile(
     rb"[ \t]*(color|background-color|border-color|border-radius|font-size|gap|"
@@ -67,14 +79,16 @@ def tag_version(tag):
     return tag[1:]
 
 
-def static_document(path, mode, new):
+def static_document(path, old, new):
     if not re.fullmatch(r"docs/(?:user|internals)/[A-Za-z0-9_./-]+\.md", path):
         return False
-    if Path(path).name in FORK_GUIDES:
+    if Path(path).name in FORK_GUIDES or PRIVATE_AREA.search(path):
         return False
-    if mode == "000000":
-        return True
-    source = git("cat-file", "blob", new)
+    empty = "0" * 40
+    before, source = (b"" if oid == empty else git("cat-file", "blob", oid) for oid in (old, new))
+    private_copy = r"privacy|telemetry|credential|sensitive data|personal data|usage statistic|crash report|data upload|隐私|敏感数据|遥测|凭据|上传"
+    if any(re.search(private_copy, content.decode("utf-8", errors="replace"), re.I) for content in (before, source)):
+        return False
     # Only plain Markdown with local references. Embedded resources, external
     # URLs, HTML and escaped or encoded markup go to review.
     return not re.search(rb"[\x00<>&\\]|!\[|//|[A-Za-z][A-Za-z0-9+.-]*:(?:/|[^\s\x60])", source)
@@ -114,7 +128,9 @@ def review_paths(base, tree, tag):
         old_mode, mode, old, new, status = metadata[1:].decode("ascii").split()
         path = os.fsdecode(name)
         if {old_mode, mode} <= {"000000", "100644"}:
-            if static_document(path, mode, new):
+            if static_document(path, old, new):
+                continue
+            if status in {"A", "M"} and mode == "100644" and local_feature_path(path):
                 continue
             if status == "M" and old_mode == mode == "100644" and path in MANIFESTS | STYLES:
                 before, after = (git("cat-file", "blob", oid) for oid in (old, new))
@@ -251,7 +267,7 @@ def prepare(tag, upstream, base):
     body = (f"Upstream [stable {tag}](https://github.com/{UPSTREAM}/releases/tag/{tag}) at "
             f"[{upstream[:10]}](https://github.com/{UPSTREAM}/commit/{upstream}). "
             f"Fork base [{base[:10]}](https://github.com/{FORK}/commit/{base}).\n\n"
-            f"{reason or 'Eligible for automatic merge after the dedicated privacy tests and desktop build pass.'}"
+            f"{reason or 'Automatic merge requires source analysis of this exact commit, passing tests and the desktop build.'}"
             f"\n\n[Upstream diff]({compare}) · [Sync run]({run_url()})")
     pr = api("pulls", data={"title": f"Sync upstream T3 Code {tag}", "head": branch, "base": MAIN,
                             "body": body, "draft": bool(reason)})
@@ -283,8 +299,9 @@ def finish(tag, upstream, base):
         api(f"issues/{number}/comments", data={"body": f"Manual review required. {reason}\n\n[Sync run]({run_url()})"})
         print(reason)
 
-    if os.environ["TEST_RESULT"] != "success":
-        hold("The privacy checks or desktop build did not complete successfully.")
+    if os.environ.get("PROOF_SHA") != head or os.environ["TEST_RESULT"] != "success":
+        reason = os.environ.get("SOURCE_REVIEW", "")
+        hold(reason or "The source analysis, tests or desktop build did not complete successfully for this commit.")
         return
     if (pr["draft"] or pr["head"]["repo"]["full_name"] != FORK or pr["head"]["ref"] != ref
             or pr["head"]["sha"] != head or pr["base"]["ref"] != MAIN or pr["base"]["sha"] != base

@@ -90,6 +90,9 @@ jobs:
        (github.event_name == 'workflow_dispatch' && needs.discover.outputs.needed == 'false'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    outputs:
+      proof: ${{ steps.source.outputs.sha }}
+      review: ${{ steps.source.outputs.reason }}
     env:
       DO_NOT_TRACK: "1"
     steps:
@@ -118,11 +121,40 @@ jobs:
           echo "$prefix/bin" >> "$GITHUB_PATH"
           export PATH="$prefix/bin:$PATH"
           pnpm install --frozen-lockfile --ignore-scripts
+      - name: Exercise the source analysis against local and sending features
+        run: node --test .github/scripts/test_local_feature_review.cjs
+      - name: Trace candidate features to local UI outputs
+        id: source
+        env:
+          REVISION: ${{ needs.propose.outputs.candidate || github.sha }}
+        run: node .github/scripts/local_feature_review.cjs "$GITHUB_SHA" "$REVISION"
       - name: Install Chromium for the server's browser integration tests
         run: node apps/server/node_modules/playwright-core/cli.js install --with-deps --only-shell chromium
       - name: Check the candidate against its fork base
         if: needs.propose.outputs.eligible == 'true'
         run: pnpm exec vp run check:changed "$GITHUB_SHA" --concurrency 3
+      - name: Run each changed feature test
+        if: steps.source.outputs.tests != '[]'
+        env:
+          FEATURE_TESTS: ${{ steps.source.outputs.tests }}
+        run: |
+          node <<'JS'
+          const { spawnSync } = require("node:child_process");
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const files = JSON.parse(process.env.FEATURE_TESTS);
+          const report = path.join(process.env.RUNNER_TEMP, "local-feature-tests.json");
+          const result = spawnSync("pnpm", ["exec", "vp", "test", "run", "--maxWorkers", "3", "--reporter=default",
+            "--reporter=json", "--outputFile.json=" + report, ...files], { stdio: "inherit" });
+          if (result.status !== 0) process.exit(result.status ?? 1);
+          const runs = JSON.parse(fs.readFileSync(report, "utf8")).testResults;
+          for (const file of files) {
+            const run = runs.find((entry) => path.resolve(entry.name) === path.resolve(file));
+            if (!run?.assertionResults.length || run.assertionResults.some((test) => test.status !== "passed")) {
+              throw new Error("Feature assertions did not all execute successfully in " + file);
+            }
+          }
+          JS
       - name: Exercise permitted and blocked application traffic
         run: |
           pnpm exec vp test run --maxWorkers 3 \
@@ -173,6 +205,8 @@ jobs:
           PR_NUMBER: ${{ needs.propose.outputs.number }}
           CANDIDATE: ${{ needs.propose.outputs.candidate }}
           TEST_RESULT: ${{ needs.verify.result }}
+          PROOF_SHA: ${{ needs.verify.outputs.proof }}
+          SOURCE_REVIEW: ${{ needs.verify.outputs.review }}
         run: |
           gh auth setup-git --hostname github.com
           python3 -B .github/scripts/upstream_sync.py finish

@@ -134,8 +134,33 @@ class SyncRun(unittest.TestCase):
 
     def finish(self, sha, result):
         head = self.pulls[0]["head"]["sha"]
-        with patch.dict(os.environ, {"PR_NUMBER": "7", "CANDIDATE": head, "TEST_RESULT": result}):
+        with patch.dict(os.environ, {"PR_NUMBER": "7", "CANDIDATE": head, "TEST_RESULT": result, "PROOF_SHA": head}):
             sync.finish(self.tag, sha, self.base)
+
+    def test_green_tests_with_missing_or_stale_source_proof_leave_pr_open(self):
+        sha = self.release({"apps/web/src/lib/formatCount.ts": "export function formatCount(n: number) { return n; }\n"})
+        sync.prepare(self.tag, sha, self.base)
+        head = self.pulls[0]["head"]["sha"]
+        self.assertFalse(self.pulls[0]["draft"])
+        for proof in ("", self.base):
+            with patch.dict(os.environ, {"PR_NUMBER": "7", "CANDIDATE": head, "TEST_RESULT": "success", "PROOF_SHA": proof}):
+                sync.finish(self.tag, sha, self.base)
+        self.assertEqual(self.remote_sha("main"), self.base)
+        self.assertEqual(len(self.comments), 2)
+
+    def test_runtime_in_a_privacy_area_stays_in_draft_without_running_it(self):
+        sha = self.release({"apps/web/src/components/PrivacyControls.tsx": "export const value = 1;\n"})
+        sync.prepare(self.tag, sha, self.base)
+        self.assertTrue(self.pulls[0]["draft"])
+        self.assertIn("PrivacyControls", self.pulls[0]["body"])
+
+    def test_privacy_statements_in_an_ordinary_guide_require_review(self):
+        text = "Telemetry is disabled; no usage statistics are uploaded.\n"
+        sha = self.release({"docs/user/example.md": text})
+        sync.prepare(self.tag, sha, self.base)
+        self.assertTrue(self.pulls[0]["draft"])
+        blob = sync.git("rev-parse", f"{sha}:docs/user/example.md").decode().strip()
+        self.assertFalse(sync.static_document("docs/user/example.md", blob, "0" * 40))
 
     def test_success_publishes_exact_tested_tree_and_preserves_fork(self):
         sha = self.release({"docs/user/example.md": "# A local shortcut\n",
