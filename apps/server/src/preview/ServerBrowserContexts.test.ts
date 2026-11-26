@@ -247,7 +247,7 @@ describe("ServerBrowserContexts", () => {
     launches.persistent.mockResolvedValue(makeContext() as unknown as BrowserContext);
     expect(await pool.contextFor("work/team")).not.toBe(persistent);
     await pool.clearProfile("never-opened");
-    expect(launches.rm).toHaveBeenLastCalledWith("/test/profiles/never-opened", {
+    expect(launches.rm).toHaveBeenLastCalledWith(NodePath.join("/test/profiles", "never-opened"), {
       recursive: true,
       force: true,
     });
