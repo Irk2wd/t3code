@@ -7,11 +7,15 @@
 
 **本分支已完全移除 T3 Code 自身用于遥测、诊断和反馈的敏感数据上传功能。** T3 不会上报使用统计、设备或安装标识、崩溃报告，也不会将聊天记录和 CLI 日志作为反馈上传。官方 T3 Connect 云中继和应用自动更新均已关闭。
 
+<!-- upstream-sync:baseline -->
+
 本分支跟随上游 T3 Code 版本，当前同步基线的桌面端和服务端版本均为 **0.1.12**。[对应的上游提交 5ee9eb99d0](https://github.com/pingdotgg/t3code/commit/5ee9eb99d07fae5f9180fa8a5784ace59d072eef)
+
+<!-- /upstream-sync:baseline -->
 
 原有 T3 界面和 Codex、Claude 等 CLI 的登录方式均可继续使用。模型请求发往所选服务，Git 从项目配置的远端拉取，模型目录仍可刷新。[允许的联网地址与发送内容](./docs/user/telemetry.md)
 
-**This fork removes all T3-managed uploads of telemetry, crash reports and feedback, including chat transcripts and CLI logs.** It tracks upstream T3 Code, currently at desktop and server version **0.1.12**, and preserves provider CLI sign-in, model requests, catalog refreshes and Git operations. [Network destinations and data sent](./docs/user/telemetry.md)
+**This fork removes all T3-managed uploads of telemetry, crash reports and feedback, including chat transcripts and CLI logs.** It tracks the upstream revision linked above and preserves provider CLI sign-in, model requests, catalog refreshes and Git operations. [Network destinations and data sent](./docs/user/telemetry.md)
 
 <p align="center">
   <a href="https://t3.codes">
@@ -43,6 +47,12 @@ node apps/server/dist/bin.mjs
 ```
 
 Use an already installed and signed-in provider CLI. The desktop development launcher is `pnpm exec vp run dev:desktop`. Application updates are disabled. To upgrade, review the source revision and build it locally.
+
+### 上游稳定版同步
+
+GitHub Actions 每 6 小时检查一次上游稳定版。每个新版本开一个 PR。普通说明文档、已审核样式表里的颜色或尺寸调整，以及发布包清单中单独的版本号变更，通过隐私测试和桌面构建后可以自动合并。涉及运行时代码、依赖、工作流、隐私说明的变更，Git 冲突或检查失败，都留在 PR 中审核。整个版本按同一份源码验证。后续轮询尊重已打开或关闭的 PR。
+
+在 Actions 页面手动运行可立即检查。上游版本已经包含在本分支时，手动运行会验证当前构建，定时运行直接结束。人工审核通过后，使用合并提交保留上游历史。同步只更新 fork 源码，本机仍然手动升级。[同步工作流](./.github/workflows/upstream-stable-sync.yml)
 
 ## "Wait, what are you selling me?"
 

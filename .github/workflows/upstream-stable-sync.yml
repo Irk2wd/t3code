@@ -1,0 +1,163 @@
+name: Sync upstream stable release
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: privacy-fork-stable-sync
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    if: github.repository == 'Irk2wd/t3code' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      sha: ${{ steps.release.outputs.sha }}
+      needed: ${{ steps.release.outputs.needed }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - name: Exercise the fork's sync policy
+        run: python3 -B .github/scripts/test_upstream_sync.py -v
+      - name: Resolve the latest public stable tag to its commit
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=$(gh api repos/pingdotgg/t3code/releases/latest | jq -er 'select(.draft == false and .prerelease == false) | .tag_name')
+          [[ "$tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          sha=$(gh api "repos/pingdotgg/t3code/commits/$tag" --jq .sha)
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          behind=$(gh api "repos/pingdotgg/t3code/compare/$sha...Irk2wd:main?per_page=1" --jq .behind_by)
+          [[ "$behind" =~ ^[0-9]+$ ]]
+          needed=false
+          if (( behind > 0 )); then needed=true; fi
+          printf 'tag=%s\nsha=%s\nneeded=%s\n' "$tag" "$sha" "$needed" >> "$GITHUB_OUTPUT"
+          printf 'Stable release %s at %s. New upstream commits: %s.\n' "$tag" "$sha" "$behind" >> "$GITHUB_STEP_SUMMARY"
+
+  propose:
+    needs: discover
+    if: needs.discover.outputs.needed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      number: ${{ steps.proposal.outputs.number }}
+      candidate: ${{ steps.proposal.outputs.candidate }}
+      eligible: ${{ steps.proposal.outputs.eligible }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - name: Prepare the candidate and open its review
+        id: proposal
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.discover.outputs.tag }}
+          RELEASE_SHA: ${{ needs.discover.outputs.sha }}
+        run: |
+          gh auth setup-git --hostname github.com
+          python3 -B .github/scripts/upstream_sync.py prepare
+
+  verify:
+    needs: [discover, propose]
+    if: >-
+      !cancelled() && needs.discover.result == 'success' &&
+      (needs.propose.outputs.eligible == 'true' ||
+       (github.event_name == 'workflow_dispatch' && needs.discover.outputs.needed == 'false'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      DO_NOT_TRACK: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ needs.propose.outputs.candidate || github.sha }}
+          fetch-depth: 2
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: package.json
+          package-manager-cache: false
+      - name: Install the fork's pinned toolchain and dependencies
+        run: |
+          prefix="$RUNNER_TEMP/privacy-sync-pnpm"
+          npm install --global --prefix "$prefix" --ignore-scripts --no-audit --no-fund "$(node -p 'require("./package.json").packageManager')"
+          echo "$prefix/bin" >> "$GITHUB_PATH"
+          export PATH="$prefix/bin:$PATH"
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check the candidate against its fork base
+        if: needs.propose.outputs.eligible == 'true'
+        run: pnpm exec vp run check:changed "$GITHUB_SHA" --concurrency 3
+      - name: Exercise permitted and blocked application traffic
+        run: |
+          pnpm exec vp test run --maxWorkers 3 \
+            packages/shared/src/networkAccess.test.ts \
+            packages/shared/src/nodeNetworkAccess.test.ts \
+            packages/shared/src/relayClient.test.ts \
+            packages/client-runtime/src/state/threadFeedback.test.ts \
+            apps/server/src/ws.test.ts \
+            apps/server/src/telemetry/AnalyticsService.test.ts \
+            apps/server/src/telemetry/ProviderUsageAnalytics.test.ts \
+            apps/server/src/cloud/CloudLink.lifecycle.test.ts \
+            apps/server/src/cloud/selfUpdate.test.ts \
+            apps/server/src/cli/update.test.ts \
+            apps/server/src/preview/ServerBrowserContexts.test.ts \
+            apps/server/src/serverRuntimeStartup.autoPull.test.ts \
+            apps/server/src/provider/ModelManifest.test.ts \
+            apps/desktop/src/app/CodexAuthCallback.test.ts \
+            apps/desktop/src/telemetry/DesktopTelemetryPublisher.test.ts \
+            apps/desktop/src/updates/DesktopUpdates.test.ts \
+            apps/mobile/src/features/agent-awareness/remoteRegistration.test.ts \
+            apps/mobile/src/features/diagnostics/crash-log-model.test.ts
+          pnpm exec vp test run apps/server/src/provider/ProviderRegistry.test.ts \
+            -t 'uses the app-server account and model list for provider status'
+      - name: Build the desktop app and local server
+        run: pnpm exec vp run build:desktop
+
+  finish:
+    needs: [discover, propose, verify]
+    if: always() && needs.propose.result == 'success' && needs.propose.outputs.eligible == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+      statuses: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - name: Publish the tested commit or leave the PR for review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.discover.outputs.tag }}
+          RELEASE_SHA: ${{ needs.discover.outputs.sha }}
+          PR_NUMBER: ${{ needs.propose.outputs.number }}
+          CANDIDATE: ${{ needs.propose.outputs.candidate }}
+          TEST_RESULT: ${{ needs.verify.result }}
+        run: |
+          gh auth setup-git --hostname github.com
+          python3 -B .github/scripts/upstream_sync.py finish
