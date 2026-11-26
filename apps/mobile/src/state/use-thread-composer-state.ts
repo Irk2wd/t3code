@@ -43,7 +43,7 @@ import {
 
 import {
   parseCodexFeedbackCommand,
-  submitCodexFeedback,
+  refusedCodexFeedback,
   type CodexFeedbackSubmission,
 } from "@t3tools/client-runtime/state/threads";
 import { resolveThreadWorkingStartedAt } from "@t3tools/client-runtime/state/models";
@@ -246,9 +246,6 @@ export function useThreadComposerState(input: {
   const [feedbackSubmissionsByThreadKey, setFeedbackSubmissionsByThreadKey] = useState<
     Record<string, ReadonlyArray<CodexFeedbackSubmission>>
   >({});
-  const uploadThreadFeedback = useAtomCommand(threadEnvironment.uploadFeedback, {
-    reportFailure: false,
-  });
   const editQueuedRun = useAtomCommand(threadEnvironment.editQueuedRun, {
     label: "edit queued message",
     reportFailure: false,
@@ -799,49 +796,20 @@ export function useThreadComposerState(input: {
     const provider = serverConfig?.providers.find(
       (entry) => entry.instanceId === modelSelection.instanceId,
     );
-    const feedbackCommand =
-      attachments.length === 0 && provider?.driver === "codex"
-        ? parseCodexFeedbackCommand(text)
-        : null;
-    if (feedbackCommand) {
-      if (!readEnvironmentScope(selectedThreadShell.environmentId, AuthOrchestrationOperateScope))
-        return null;
-      if (thread.activeProviderThreadId === null) {
-        Dialog.alert(
-          m(msg("Start a {provider} thread first", { provider: "Codex" })),
-          m(msg("Send a message before you submit feedback.")),
-        );
-        return null;
-      }
+    if (provider?.driver === "codex" && parseCodexFeedbackCommand(text)) {
       const metadata = makeQueuedMessageMetadata();
-      await submitCodexFeedback(
+      const submission = refusedCodexFeedback(
         {
-          submission: {
-            id: MessageId.make(metadata.messageId),
-            command: text,
-            createdAt: metadata.createdAt,
-          },
-          clearDraft: () => clearComposerDraftContent(threadKey),
-          onUpdate: (submission) => {
-            setFeedbackSubmissionsByThreadKey((current) => {
-              const existing = current[threadKey] ?? [];
-              const found = existing.some((entry) => entry.id === submission.id);
-              return {
-                ...current,
-                [threadKey]: found
-                  ? existing.map((entry) => (entry.id === submission.id ? submission : entry))
-                  : [...existing, submission],
-              };
-            });
-          },
-          upload: () =>
-            uploadThreadFeedback({
-              environmentId: thread.environmentId,
-              input: { threadId: thread.id, ...feedbackCommand },
-            }),
+          id: MessageId.make(metadata.messageId),
+          command: text,
+          createdAt: metadata.createdAt,
         },
         m,
       );
+      setFeedbackSubmissionsByThreadKey((current) => ({
+        ...current,
+        [threadKey]: [...(current[threadKey] ?? []), submission],
+      }));
       return null;
     }
 

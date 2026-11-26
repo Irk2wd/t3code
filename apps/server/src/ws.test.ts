@@ -2886,20 +2886,21 @@ it.effect("ACP session RPCs list a thread missing its history and repair it on i
   ),
 );
 
-const workflowTags = [
+const threadOperationTags = [
+  WS_METHODS.providerUploadFeedback,
   WS_METHODS.workflowsGet,
   WS_METHODS.workflowsAnswer,
   WS_METHODS.workflowsResume,
   WS_METHODS.workflowsCancel,
 ] as const;
-const workflowRpcs = WsRpcGroup.omit(
+const threadOperationRpcs = WsRpcGroup.omit(
   ...[...WsRpcGroup.requests.keys()].filter(
     (
       tag,
     ): tag is Exclude<
       keyof typeof RpcAuthorization.RPC_REQUIRED_SCOPES,
-      (typeof workflowTags)[number]
-    > => !(workflowTags as ReadonlyArray<string>).includes(tag),
+      (typeof threadOperationTags)[number]
+    > => !(threadOperationTags as ReadonlyArray<string>).includes(tag),
   ),
 );
 const workflowRun: WorkflowRun = {
@@ -2934,7 +2935,7 @@ const workflowStep: WorkflowStep = {
 };
 
 /** A client for the workflow RPCs whose session holds `scopes`; `calls` records what reached the service. */
-const makeWorkflowClient = Effect.fn("test.makeWorkflowClient")(function* (
+const makeThreadOperationClient = Effect.fn("test.makeThreadOperationClient")(function* (
   scopes: ReadonlyArray<AuthEnvironmentScope>,
   calls: Array<unknown>,
 ) {
@@ -2967,7 +2968,7 @@ const makeWorkflowClient = Effect.fn("test.makeWorkflowClient")(function* (
       cancel: (runId, reason) => Effect.sync(() => calls.push({ cancel: runId, reason })),
     }),
   );
-  return yield* RpcTest.makeClient(workflowRpcs).pipe(
+  return yield* RpcTest.makeClient(threadOperationRpcs).pipe(
     Effect.provide(
       layerWsRpc(
         {
@@ -3109,10 +3110,26 @@ it.effect("preparing an ACP Registry agent follows the policy's allowed provider
   }).pipe(Effect.provide(layerWorkflowRpcTest)),
 );
 
+it.effect("refuses legacy provider feedback before accessing a thread or agent session", () =>
+  Effect.gen(function* () {
+    const calls: Array<unknown> = [];
+    const client = yield* makeThreadOperationClient([AuthOrchestrationOperateScope], calls);
+    const refusal = yield* client[WS_METHODS.providerUploadFeedback]({
+      threadId: ThreadId.make("never-opened"),
+      reason: "local diagnostic",
+    }).pipe(Effect.flip);
+    assert.strictEqual(refusal._tag, "ProviderUploadFeedbackError");
+    if (refusal._tag === "ProviderUploadFeedbackError") {
+      assert.include(String(refusal.cause), "disabled");
+    }
+    assert.deepEqual(calls, []);
+  }).pipe(Effect.provide(layerWorkflowRpcTest), Effect.scoped),
+);
+
 it.effect("workflow RPCs read a run and pass an answer, a resume and a cancel to the service", () =>
   Effect.gen(function* () {
     const calls: Array<unknown> = [];
-    const client = yield* makeWorkflowClient(
+    const client = yield* makeThreadOperationClient(
       [AuthOrchestrationReadScope, AuthOrchestrationOperateScope],
       calls,
     );
@@ -3160,7 +3177,7 @@ it.effect("workflow RPCs read a run and pass an answer, a resume and a cancel to
 it.effect("a session that can only read sees a workflow run but cannot steer it", () =>
   Effect.gen(function* () {
     const calls: Array<unknown> = [];
-    const client = yield* makeWorkflowClient([AuthOrchestrationReadScope], calls);
+    const client = yield* makeThreadOperationClient([AuthOrchestrationReadScope], calls);
 
     assert.equal((yield* client[WS_METHODS.workflowsGet]({ runId: "run-1" })).run.runId, "run-1");
     const refused = yield* Effect.all([

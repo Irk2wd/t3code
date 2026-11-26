@@ -1,11 +1,5 @@
-import { thrownErrorMessage } from "../errors/translatable.ts";
-import { MessageId, type ProviderUploadFeedbackResult } from "@t3tools/contracts";
+import { MessageId } from "@t3tools/contracts";
 
-import {
-  isAtomCommandInterrupted,
-  squashAtomCommandFailure,
-  type AtomCommandResult,
-} from "./runtime.ts";
 import { mFallback, msg } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
 
@@ -96,38 +90,14 @@ export function codexFeedbackMessage(
   };
 }
 
-export async function submitCodexFeedback<E>(
-  input: {
-    readonly submission: CodexFeedbackSubmissionDetails;
-    readonly clearDraft: () => void;
-    readonly onUpdate: (submission: CodexFeedbackSubmission) => void;
-    readonly upload: () => Promise<AtomCommandResult<ProviderUploadFeedbackResult, E>>;
-  },
+/** A manually typed legacy command produces only a local notice. */
+export function refusedCodexFeedback(
+  submission: CodexFeedbackSubmissionDetails,
   resolve: MFunctionType = mFallback,
-): Promise<AtomCommandResult<ProviderUploadFeedbackResult, E>> {
-  input.onUpdate({ ...input.submission, status: "uploading" });
-  input.clearDraft();
-
-  const result = await input.upload();
-  if (result._tag === "Success") {
-    input.onUpdate({
-      ...input.submission,
-      status: "sent",
-      feedbackId: result.value.feedbackId,
-    });
-  } else if (isAtomCommandInterrupted(result)) {
-    input.onUpdate({ ...input.submission, status: "interrupted" });
-  } else {
-    const error = squashAtomCommandFailure(result);
-    input.onUpdate({
-      ...input.submission,
-      status: "failed",
-      errorMessage:
-        error instanceof Error
-          ? (thrownErrorMessage(error, resolve) ?? error.message)
-          : resolve(msg("An error occurred.")),
-    });
-  }
-
-  return result;
+): CodexFeedbackSubmission {
+  return {
+    ...submission,
+    status: "failed",
+    errorMessage: resolve(msg("Provider feedback uploads are disabled in this build.")),
+  };
 }
