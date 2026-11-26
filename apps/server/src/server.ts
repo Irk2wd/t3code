@@ -309,19 +309,6 @@ const layerResourceDiagnostics = Layer.mergeAll(
   ProcessGroupMetrics.layer.pipe(Layer.provide(layerResourceTelemetry)),
 );
 
-const refusedRelayInstall = Effect.fail(
-  new RelayClient.RelayClientInstallError({
-    reason: "managed_by_policy",
-    message: "T3 Connect is disabled in this build.",
-  }),
-);
-const layerRelayClient = Layer.succeed(RelayClient.RelayClient, {
-  resolve: Effect.succeed({ status: "missing" as const, version: RelayClient.CLOUDFLARED_VERSION }),
-  install: refusedRelayInstall,
-  installWithProgress: Effect.fn("RelayClient.installWithProgress")(() => refusedRelayInstall),
-  pruneManagedVersions: Effect.void,
-});
-
 // NodeServices and NodeHttpServer each output Node's own spawner, so each is followed by this one.
 const layerSpawner = SpawnWorker.layerServer.pipe(Layer.provide(NodeServices.layer));
 
@@ -769,7 +756,7 @@ const layerRuntimeCoreDependencies = layerRuntimeCoreDependenciesBase.pipe(
     Layer.mergeAll(AssetSigner.layer, EnvironmentKeys.layer, WorkspacePreviewRevisions.layer),
   ),
   Layer.provideMerge(ServerSecretStore.layer),
-  Layer.provideMerge(layerRelayClient),
+  Layer.provideMerge(RelayClient.layer),
 );
 
 const layerRuntimeDependencies = layerRuntimeCoreDependencies.pipe(
