@@ -146,6 +146,10 @@ jobs:
             apps/mobile/src/features/diagnostics/crash-log-model.test.ts
           pnpm exec vp test run apps/server/src/provider/ProviderRegistry.test.ts \
             -t 'uses the app-server account and model list for provider status'
+      - name: Install the Linux desktop build headers
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libsecret-1-dev pkg-config build-essential
       - name: Build the desktop app and local server
         run: pnpm exec vp run build:desktop
 
