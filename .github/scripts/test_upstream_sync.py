@@ -164,6 +164,25 @@ class SyncRun(unittest.TestCase):
             self.assertIn(path, pr["body"])
         self.assertEqual(self.remote_sha("main"), self.base)
 
+    def test_mergeability_becomes_available_after_the_first_pr_read(self):
+        sha = self.release({"docs/user/example.md": "# Local help\n"})
+        sync.prepare(self.tag, sha, self.base)
+        reads = 0
+
+        def calculating(path, **kwargs):
+            nonlocal reads
+            result = self.api(path, **kwargs)
+            if path == "pulls/7":
+                reads += 1
+                if reads == 1:
+                    return {**result, "mergeable": None, "mergeable_state": "unknown"}
+            return result
+
+        with patch.object(sync, "api", side_effect=calculating), patch.object(sync.time, "sleep") as sleep:
+            self.finish(sha, "success")
+        sleep.assert_called_once_with(1)
+        self.assertEqual(self.remote_sha("main"), self.pulls[0]["head"]["sha"])
+
     def test_conflict_keeps_real_upstream_head_unmerged(self):
         sha = self.release({"policy.txt": "upstream sends events differently\n"})
         sync.prepare(self.tag, sha, self.base)

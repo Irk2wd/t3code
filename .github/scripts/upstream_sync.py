@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from urllib.parse import quote_from_bytes, urlencode
 
@@ -265,7 +266,15 @@ def finish(tag, upstream, base):
     if not number.isdecimal() or not SHA.fullmatch(head):
         raise ValueError("Invalid PR or candidate")
     ref = f"codex/upstream-{tag}"
-    pr = api(f"pulls/{number}")
+    pull_path = f"pulls/{number}"
+    pr = api(pull_path)
+    if os.environ["TEST_RESULT"] == "success":
+        # GitHub calculates mergeability asynchronously on the first PR read.
+        for delay in (1, 2, 4, 8):
+            if pr["state"] != "open" or pr["draft"] or pr["mergeable"] is not None:
+                break
+            time.sleep(delay)
+            pr = api(pull_path)
     if pr["state"] != "open":
         print(f"PR #{number} is already closed.")
         return
