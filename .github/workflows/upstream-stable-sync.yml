@@ -22,10 +22,21 @@ jobs:
       sha: ${{ steps.release.outputs.sha }}
       needed: ${{ steps.release.outputs.needed }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          sparse-checkout: .github/scripts
-          persist-credentials: false
+      # The upstream vendor snapshot contains an unregistered Git submodule.
+      # Fetch public sources without credentials or recursive submodule cleanup.
+      - &trusted-checkout
+        name: Fetch the fork's trusted sync scripts
+        run: |
+          set -euo pipefail
+          git init -q
+          git remote add origin https://github.com/Irk2wd/t3code.git
+          git config remote.origin.promisor true
+          git config remote.origin.partialclonefilter blob:none
+          git config submodule.recurse false
+          git fetch --no-tags --depth=1 --filter=blob:none origin "$GITHUB_SHA"
+          git sparse-checkout set --cone .github/scripts
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
       - name: Exercise the fork's sync policy
         run: python3 -B .github/scripts/test_upstream_sync.py -v
       - name: Resolve the latest public stable tag to its commit
@@ -58,12 +69,9 @@ jobs:
       candidate: ${{ steps.proposal.outputs.candidate }}
       eligible: ${{ steps.proposal.outputs.eligible }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
-          sparse-checkout: .github/scripts
-          persist-credentials: false
+      - *trusted-checkout
+      - name: Fetch the fork ancestry for a three-way merge
+        run: git fetch --unshallow --no-tags --filter=blob:none origin "$GITHUB_SHA"
       - name: Prepare the candidate and open its review
         id: proposal
         env:
@@ -85,15 +93,20 @@ jobs:
     env:
       DO_NOT_TRACK: "1"
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          ref: ${{ needs.propose.outputs.candidate || github.sha }}
-          fetch-depth: 2
-          sparse-checkout: |
-            /*
-            !/.repos/
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
+      - name: Fetch the exact application revision to test
+        env:
+          REVISION: ${{ needs.propose.outputs.candidate || github.sha }}
+        run: |
+          set -euo pipefail
+          git init -q
+          git remote add origin https://github.com/Irk2wd/t3code.git
+          git config remote.origin.promisor true
+          git config remote.origin.partialclonefilter blob:none
+          git config submodule.recurse false
+          git fetch --no-tags --depth=2 --filter=blob:none origin "$REVISION"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$REVISION"
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version-file: package.json
@@ -145,11 +158,7 @@ jobs:
       checks: read
       statuses: read
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          ref: ${{ github.sha }}
-          sparse-checkout: .github/scripts
-          persist-credentials: false
+      - *trusted-checkout
       - name: Publish the tested commit or leave the PR for review
         env:
           GH_TOKEN: ${{ github.token }}
