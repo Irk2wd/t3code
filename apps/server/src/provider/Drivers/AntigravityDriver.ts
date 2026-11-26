@@ -72,6 +72,7 @@ import {
 import { makeAcpNativeLoggerFactory } from "@t3tools/provider-acp/server/nativeLogging";
 import { ProviderDriverError } from "../Errors.ts";
 import { makeAntigravityProvider } from "../AntigravityProvider.ts";
+import { antigravityQuotaFilename, readAntigravityQuota } from "../antigravityLocalQuota.ts";
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
 import * as ModelCatalog from "@t3tools/provider-core/server/ModelCatalog";
 import {
@@ -184,6 +185,7 @@ export const AntigravityDriver: ProviderDriver<
       ),
     );
     const profileDirectory = directories.profile;
+    const quotaFile = path.join(profileDirectory, antigravityQuotaFilename);
     // Only a session reports whether agy offers Auto, so keep the last answer across restarts.
     const runtimeModesPath = path.join(profileDirectory, "t3-runtime-modes.json");
     const rememberedRuntimeModes = yield* fileSystem.readFileString(runtimeModesPath).pipe(
@@ -217,10 +219,22 @@ export const AntigravityDriver: ProviderDriver<
       accentColor,
       continuationGroupKey: continuationIdentity.continuationKey,
     });
-    const classifyModels = (draft: ServerProviderDraft) =>
-      currentCatalog.pipe(
-        Effect.map((catalog) => stampIdentity(ModelCatalog.applyModelCatalog(draft, catalog))),
+    const classifyModels = Effect.fn("AntigravityDriver.snapshot")(function* (
+      draft: ServerProviderDraft,
+    ) {
+      const catalog = yield* currentCatalog;
+      const quota =
+        draft.enabled &&
+        draft.auth.status !== "unauthenticated" &&
+        (auth.authMethod === "oauth-personal" || auth.authMethod === "oauth-business")
+          ? yield* readAntigravityQuota(quotaFile).pipe(
+              Effect.provideService(FileSystem.FileSystem, fileSystem),
+            )
+          : undefined;
+      return stampIdentity(
+        ModelCatalog.applyModelCatalog(quota ? { ...draft, usageLimits: quota } : draft, catalog),
       );
+    });
 
     const prepareSpawn = Effect.fn("AntigravityDriver.prepareSpawn")(function* (
       cwd: string,
@@ -527,7 +541,11 @@ export const AntigravityDriver: ProviderDriver<
       instanceId,
       makeRuntime: makeDisposableRuntime,
       onAuthenticated: publishCatalog,
-      onSignedOut: Effect.suspend(() => provider.onSignedOut),
+      onSignedOut: Effect.suspend(() => provider.onSignedOut).pipe(
+        Effect.andThen(
+          fileSystem.remove(quotaFile, { force: true }).pipe(Effect.ignore({ log: true })),
+        ),
+      ),
       usesBrowser: antigravityAuthUsesBrowser(auth.authMethod),
       codeLogin,
     });

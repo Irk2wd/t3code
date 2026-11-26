@@ -15,6 +15,8 @@
 
 原有 T3 界面和 Codex、Claude 等 CLI 的登录方式均可继续使用。模型请求发往所选服务，Git 从项目配置的远端拉取，模型目录仍可刷新。[允许的联网地址与发送内容](./docs/user/telemetry.md)
 
+需要在 T3 查看 Antigravity 剩余额度时，可运行 `t3 antigravity-quota open`，在官方 CLI 输入 `/usage`，再刷新 T3 的额度面板。配额快照保存在本机。[使用说明](./docs/user/usage.md#show-antigravity-quota-from-the-official-cli)
+
 **This fork removes all T3-managed uploads of telemetry, crash reports and feedback, including chat transcripts and CLI logs.** It tracks the upstream revision linked above and preserves provider CLI sign-in, model requests, catalog refreshes and Git operations. [Network destinations and data sent](./docs/user/telemetry.md)
 
 <p align="center">

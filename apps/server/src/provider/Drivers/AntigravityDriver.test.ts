@@ -32,6 +32,11 @@ import * as ServerConfig from "../../config.ts";
 import * as ServerSettings from "../../serverSettings.ts";
 import * as AntigravityInstallation from "../AntigravityInstallation.ts";
 import {
+  antigravityQuotaFilename,
+  quotaFromStatusLine,
+  saveAntigravityQuota,
+} from "../antigravityLocalQuota.ts";
+import {
   ANTIGRAVITY_AUTH_STDOUT_PREFIX,
   resolveAntigravityInstanceDirectories,
 } from "../antigravityAuthSupport.ts";
@@ -313,6 +318,29 @@ const layerTest = ProviderHostLive.layer.pipe(
 );
 
 it.layer(layerTest)("AntigravityDriver", (it) => {
+  it.effect(
+    "serves the local CLI reading only on its bound instance without starting an ACP session",
+    () =>
+      Effect.gen(function* () {
+        const owner = yield* makeHarness();
+        const other = yield* makeHarness();
+        const file = owner.path.join(owner.profileDirectory, antigravityQuotaFilename);
+        const quota = quotaFromStatusLine(
+          '{"quota":{"gemini-weekly":{"remaining_fraction":0.75}}}',
+          yield* DateTime.now,
+        )!;
+        yield* saveAntigravityQuota(file, quota);
+        const snapshot = yield* owner.instance.snapshot.getSnapshot;
+        expect(snapshot.usageLimits?.windows).toEqual([
+          { id: "gemini-weekly", label: "gemini-weekly", kind: "weekly", usedPercent: 25 },
+        ]);
+        expect((yield* other.instance.snapshot.getSnapshot).usageLimits).toBeUndefined();
+        yield* owner.fs.remove(file);
+        expect((yield* owner.instance.snapshot.getSnapshot).usageLimits).toBeUndefined();
+        expect(owner.launches).toHaveLength(0);
+      }),
+  );
+
   it.effect.skipIf(windowsHost)(
     "refreshes the selected executable and limits form capabilities to chat",
     () =>

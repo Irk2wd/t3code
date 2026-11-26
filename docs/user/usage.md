@@ -41,6 +41,20 @@ Usage aggregates history across Codex, Claude Code, Grok Build, OpenCode, Antigr
   - Pure API-key accounts generally do not report subscription limits.
 - **Mobile widget**: Add the **Subscription usage** widget on iOS or Android to monitor Codex and Claude quotas from your home screen.
 
+### Show Antigravity quota from the official CLI
+
+In a terminal on the T3 host, run this fork's `t3 antigravity-quota open`. In the official Antigravity CLI, use the Google account for your T3 provider instance and enter `/usage`. Open **Usage → Limits** in T3 and refresh to see the saved percentages and reset times. You can exit the CLI after capturing a reading.
+
+For a second Antigravity instance, supply its exact T3 ID with `--instance work-antigravity`. If your T3 server uses a custom home, pass the same `--base-dir`. From a Windows source checkout you can use the built CLI and the path to your Antigravity executable.
+
+```powershell
+node apps/server/dist/bin.mjs antigravity-quota open --binary "$env:LOCALAPPDATA\agy\bin\agy.exe"
+```
+
+The launcher supplies a [status-line command](https://antigravity.google/docs/cli/statusline/) for that CLI session. Google handles the [quota refresh](https://antigravity.google/docs/cli/commands/usage). T3 reads only the saved bucket IDs, percentages, reset times, and local observation time when showing limits. Closing the CLI ends capture. A bucket whose reset has passed disappears until the CLI reports it again. Amount-only buckets have no percentage to display.
+
+Run `t3 antigravity-quota clear` with the same instance and home to remove the saved reading, then refresh Limits. The T3 panel reads the local snapshot through its existing backend connection. No extra listener or Clash exception is needed.
+
 ## Connect a CLIProxyAPI hub
 
 Open **Settings → Providers → Usage providers → Add hub**, choose the environment, and enter the hub URL and management key. Pools Codex, Claude, and Grok accounts under **Usage → Limits** (including Codex **Use reset**). Configure the provider's endpoint to the same URL if you want threads to display that hub's limits.

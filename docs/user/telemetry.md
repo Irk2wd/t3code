@@ -14,6 +14,8 @@ T3 runs its existing desktop and web interface against a local server. Installed
 
 The Git integration also uses the selected project's forge through its configured CLI for pull request and issue operations. A background status refresh can contact that forge. T3 does not query your account for a star on the upstream project.
 
+The optional [Antigravity quota capture](./usage.md#show-antigravity-quota-from-the-official-cli) records the percentages and reset times supplied by the official CLI on this host. Refreshing this reading in T3 uses the local snapshot. The capture discards the status line's account, workspace and conversation metadata.
+
 The server uses its bundled model manifest when a refresh is unavailable. Application HTTP redirects are rejected before a follow-up request. Product events, device and installation identifiers, feedback transcripts, relay notifications and diagnostic payloads have no external delivery path in this build. Local conversations, logs and resource measurements remain available on the machine running the server.
 
 ## Explicit destinations
