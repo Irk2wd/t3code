@@ -9,7 +9,7 @@
 
 <!-- upstream-sync:baseline -->
 
-本分支跟随上游 T3 Code 版本，当前同步基线的桌面端和服务端版本均为 **0.1.12**。[对应的上游提交 5ee9eb99d0](https://github.com/pingdotgg/t3code/commit/5ee9eb99d07fae5f9180fa8a5784ace59d072eef)
+本分支跟随上游 T3 Code 的稳定版。当前源码已同步至 **v0.1.13**。[对应的上游提交 bc0f04da94](https://github.com/pingdotgg/t3code/commit/bc0f04da94f64b5e487c598761a43b4cf06b2ac9)
 
 <!-- /upstream-sync:baseline -->
 
